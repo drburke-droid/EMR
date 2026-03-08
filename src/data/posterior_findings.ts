@@ -1,0 +1,146 @@
+import { type RegionFindings } from "./anterior_findings";
+
+const severity3 = [{ label: "mild" }, { label: "mod" }, { label: "sev" }];
+const grading4 = [{ label: "trace" }, { label: "1+" }, { label: "2+" }, { label: "3+" }];
+
+export const posteriorFindings: RegionFindings[] = [
+  // VITREOUS
+  {
+    regionId: "vitreous",
+    label: "Vitreous",
+    abbrev: "VIT",
+    findings: [
+      { label: "normal" },
+      { label: "syneresis" },
+      { label: "PVD", children: [{ label: "acute symptomatic" }, { label: "chronic" }, { label: "Weiss ring present" }, { label: "floaters reported" }, { label: "flashes reported" }] },
+      { label: "pigment cells", children: [{ label: "trace" }, { label: "present" }, { label: "Shafer positive" }] },
+      { label: "vitreous heme", children: [{ label: "trace" }, ...severity3.slice(0, 2), { label: "dense" }, { label: "view reduced" }] },
+      { label: "cells", children: grading4 },
+      { label: "asteroid hyalosis" },
+      { label: "vitritis", children: [...grading4, { label: "snowballs absent" }, { label: "snowballs present" }] },
+      { label: "other" },
+    ],
+  },
+  // OPTIC NERVE
+  {
+    regionId: "optic_nerve",
+    label: "Optic Nerve",
+    abbrev: "ONH",
+    findings: [
+      { label: "normal" },
+      { label: "cupping", children: [{ label: "small" }, { label: "mod" }, { label: "large" }, { label: "asymmetric" }, { label: "vertical enlargement" }, { label: "thin inf rim" }, { label: "thin sup rim" }, { label: "notching absent" }, { label: "notching present" }] },
+      { label: "edema", children: [...severity3.slice(0, 2), { label: "marked" }, { label: "blurred margins" }, { label: "elevation" }, { label: "hyperemia" }, { label: "Paton lines absent" }, { label: "Paton lines present" }, { label: "heme absent" }, { label: "heme present" }, { label: "SVP absent" }, { label: "SVP present" }] },
+      { label: "elevated disc" },
+      { label: "pallor", children: [{ label: "temporal" }, { label: "diffuse" }, { label: "sectoral" }, ...severity3.slice(0, 2), { label: "marked" }] },
+      { label: "tilted disc", children: [{ label: "myopic appearance" }, { label: "oblique insertion" }, { label: "PPA present" }, { label: "stable" }] },
+      { label: "PPA", children: [{ label: "trace" }, ...severity3.slice(0, 2), { label: "marked" }, { label: "temporal" }, { label: "360" }] },
+      { label: "drusen", children: [{ label: "buried" }, { label: "visible" }, { label: "elevated lumpy contour" }, { label: "autofluorescence positive if known" }] },
+      { label: "heme", children: [{ label: "splinter" }, { label: "inferotemporal" }, { label: "superotemporal" }, { label: "isolated" }, { label: "recurrent by hx" }] },
+      { label: "anomalous disc" },
+      { label: "crowded disc", children: [{ label: "small cup" }, { label: "hyperopia suspected" }, { label: "no true edema features" }] },
+      { label: "other" },
+    ],
+  },
+  // MACULA
+  {
+    regionId: "macula",
+    label: "Macula",
+    abbrev: "MAC",
+    findings: [
+      { label: "normal" },
+      { label: "drusen", children: [{ label: "few" }, { label: "multiple" }, { label: "small" }, { label: "intermediate" }, { label: "large" }, { label: "hard" }, { label: "soft" }, { label: "extrafoveal" }, { label: "subfoveal" }] },
+      { label: "RPE change", children: [{ label: "mottling" }, { label: "clumping" }, { label: "atrophy" }, { label: "migration" }, { label: "focal" }, { label: "diffuse" }] },
+      { label: "ERM", children: [{ label: "trace" }, ...severity3, { label: "foveal distortion absent" }, { label: "foveal distortion present" }] },
+      { label: "hole", children: [{ label: "lamellar" }, { label: "full thickness suspected" }, { label: "small" }, { label: "medium" }, { label: "operculum absent" }, { label: "operculum present" }] },
+      { label: "pucker" },
+      { label: "edema", children: [...severity3.slice(0, 2), { label: "marked" }, { label: "cystic change suspected" }, { label: "foveal involvement absent" }, { label: "foveal involvement present" }] },
+      { label: "SRF", children: [{ label: "trace" }, { label: "mild" }, { label: "mod" }, { label: "subfoveal" }, { label: "extrafoveal" }] },
+      { label: "heme", children: [{ label: "dot blot" }, { label: "flame" }, { label: "subretinal" }, { label: "small" }, { label: "medium" }, { label: "large" }, { label: "foveal involvement absent" }, { label: "foveal involvement present" }] },
+      { label: "scar" },
+      { label: "atrophy", children: [{ label: "RPE" }, { label: "geographic" }, { label: "central" }, { label: "extrafoveal" }, { label: "small" }, { label: "medium" }, { label: "large" }] },
+      { label: "PED", children: [{ label: "small" }, { label: "medium" }, { label: "large" }, { label: "serous appearing" }, { label: "drusenoid appearing" }] },
+      { label: "CNV suspicious" },
+      { label: "CSR", children: [{ label: "acute" }, { label: "chronic" }, { label: "focal SRF" }, { label: "RPE leak suspected" }] },
+      { label: "other" },
+    ],
+  },
+  {
+    regionId: "fovea",
+    label: "Fovea",
+    abbrev: "FOVEA",
+    findings: [
+      { label: "normal reflex" },
+      { label: "diminished reflex" },
+      { label: "absent reflex" },
+      { label: "other" },
+    ],
+  },
+  // RETINAL VESSELS
+  {
+    regionId: "retinal_vessels",
+    label: "Retinal Vessels",
+    abbrev: "VESSELS",
+    findings: [
+      { label: "normal" },
+      { label: "AV nicking", children: severity3 },
+      { label: "attenuation", children: [...severity3, { label: "generalized" }, { label: "focal" }] },
+      { label: "tortuosity", children: [...severity3, { label: "venous" }, { label: "arterial" }] },
+      { label: "sheathing", children: [{ label: "focal" }, { label: "diffuse" }, { label: "arterial" }, { label: "venous" }] },
+      { label: "NV", children: [{ label: "NVE" }, { label: "NVD" }, { label: "fine" }, { label: "florid" }, { label: "with pre retinal heme" }, { label: "without heme" }] },
+      { label: "occlusion signs" },
+      { label: "embolus", children: [{ label: "Hollenhorst appearing" }, { label: "calcific appearing" }, { label: "platelet fibrin appearing" }, { label: "branch point" }, { label: "arteriole" }] },
+      { label: "copper wiring" },
+      { label: "silver wiring" },
+      { label: "other" },
+    ],
+  },
+  // PERIPHERAL RETINA — all quadrants share the same finding tree
+  ...(
+    [
+      { id: "temporal_retina", label: "Temporal Retina", abbrev: "RET" },
+      { id: "nasal_retina", label: "Nasal Retina", abbrev: "RET" },
+      { id: "superior_retina", label: "Superior Retina", abbrev: "RET" },
+      { id: "inferior_retina", label: "Inferior Retina", abbrev: "RET" },
+      { id: "ST_midperiphery", label: "ST Midperiphery", abbrev: "RET" },
+      { id: "SN_midperiphery", label: "SN Midperiphery", abbrev: "RET" },
+      { id: "IT_midperiphery", label: "IT Midperiphery", abbrev: "RET" },
+      { id: "IN_midperiphery", label: "IN Midperiphery", abbrev: "RET" },
+      { id: "far_periphery", label: "Far Periphery", abbrev: "RET" },
+      { id: "superior_arcade", label: "Superior Arcade", abbrev: "RET" },
+      { id: "inferior_arcade", label: "Inferior Arcade", abbrev: "RET" },
+    ] as const
+  ).map(({ id, label, abbrev }) => ({
+    regionId: id,
+    label,
+    abbrev,
+    findings: [
+      { label: "normal" },
+      { label: "pigmented lesion", children: [
+        { label: "nevus", children: [{ label: "flat" }, { label: "min elevated" }, { label: "elevated" }, { label: "small" }, { label: "medium" }, { label: "large" }, { label: "exact size" }, { label: "drusen present" }, { label: "drusen absent" }, { label: "orange pigment present" }, { label: "orange pigment absent" }, { label: "SRF present" }, { label: "SRF absent" }, { label: "distinct margins" }, { label: "indistinct margins" }, { label: "photo documented" }, { label: "stable by hx" }, { label: "new by hx" }] },
+        { label: "CHRPE", children: [{ label: "small" }, { label: "medium" }, { label: "large" }, { label: "flat" }, { label: "lacunae present" }, { label: "lacunae absent" }, { label: "sharp borders" }, { label: "single" }, { label: "multiple" }] },
+        { label: "bear tracks", children: [{ label: "single cluster" }, { label: "multiple clusters" }, { label: "flat" }, { label: "well demarcated" }] },
+        { label: "RPE hyperplasia" },
+        { label: "pigment clumping" },
+        { label: "suspicious melanocytic lesion", children: [{ label: "elevated" }, { label: "orange pigment present" }, { label: "SRF present" }, { label: "indistinct margins" }, { label: "growth by hx" }, { label: "large size" }, { label: "referral suggested" }] },
+      ]},
+      { label: "non pigmented lesion" },
+      { label: "hole", children: [{ label: "atrophic" }, { label: "operculated" }, { label: "small" }, { label: "medium" }, { label: "large" }, { label: "surrounding cuff absent" }, { label: "surrounding cuff present" }, { label: "pigment absent" }, { label: "pigment present" }, { label: "with SRF absent" }, { label: "with SRF present" }] },
+      { label: "tear", children: [{ label: "horseshoe" }, { label: "flap" }, { label: "small" }, { label: "medium" }, { label: "large" }, { label: "acute appearing" }, { label: "pigment present" }, { label: "heme present" }, { label: "SRF absent" }, { label: "SRF present" }, { label: "traction visible" }, { label: "symptomatic by hx" }] },
+      { label: "lattice", children: [{ label: "small area" }, { label: "broad area" }, { label: "pigment present" }, { label: "atrophic holes absent" }, { label: "atrophic holes present" }] },
+      { label: "WWP", children: [{ label: "small" }, { label: "broad" }] },
+      { label: "pavingstone", children: [{ label: "single" }, { label: "multiple" }, { label: "benign appearance" }] },
+      { label: "tuft", children: [{ label: "cystic" }, { label: "non cystic" }, { label: "small" }, { label: "focal" }] },
+      { label: "RPE change" },
+      { label: "degeneration" },
+      { label: "atrophy" },
+      { label: "scar", children: [{ label: "chorioretinal" }, { label: "laser" }, { label: "old inflammation" }, { label: "old trauma" }, { label: "flat" }, { label: "pigmented border" }] },
+      { label: "heme", children: [{ label: "dot blot" }, { label: "flame" }, { label: "pre retinal" }, { label: "subretinal" }, { label: "small" }, { label: "medium" }, { label: "large" }, { label: "localized" }, { label: "diffuse" }] },
+      { label: "CWS", children: [{ label: "single" }, { label: "multiple" }, { label: "small" }, { label: "medium" }] },
+      { label: "exudate", children: [{ label: "hard exudate" }, { label: "circinate" }, { label: "focal" }, { label: "diffuse" }, { label: "macular involvement absent" }, { label: "macular involvement present" }] },
+      { label: "microaneurysm", children: [{ label: "few" }, { label: "multiple" }, { label: "focal" }, { label: "diffuse" }, { label: "background DR context" }] },
+      { label: "NV" },
+      { label: "detachment", children: [{ label: "localized" }, { label: "bullous" }, { label: "macula on suspected" }, { label: "macula off suspected" }, { label: "urgent referral" }] },
+      { label: "other" },
+    ],
+  })),
+];
