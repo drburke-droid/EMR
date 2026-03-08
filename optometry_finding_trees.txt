@@ -1,0 +1,2167 @@
+
+OPTOMETRY CONTEXTUAL FINDING TREES SPEC
+Developer-ready menu structure for touch-based charting MVP
+
+Purpose
+This file defines anatomy regions, contextual finding trees, diagnosis lists, and treatment plan blocks for a touch-based optometry charting system that generates text for copy-paste into an existing EMR.
+
+Scope
+This version is focused on:
+Symptoms
+History
+Clinical findings
+Diagnosis selection
+Treatment plan selection
+Text output generation
+
+This version does NOT include:
+AI
+Billing
+Scheduling
+Full EMR replacement
+
+==================================================
+1. CORE UI MODEL
+==================================================
+
+Workflow
+1. User selects exam module
+2. User taps anatomy region
+3. Contextual menu appears with likely findings for that region
+4. User taps finding
+5. Successive qualifier menus appear
+6. System generates structured text
+7. User repeats on same or different anatomy
+8. User selects diagnoses
+9. User selects treatment plan blocks
+10. Final text output is copied into EMR
+
+Menu design rules
+Only show likely findings for the selected anatomy
+Show most common findings first
+Keep each branch shallow where possible
+Allow "More" for uncommon findings
+Allow repeat finding entry in same structure
+Allow copy to fellow eye
+Allow exact size, degree, or free text only when needed
+
+Output sections
+History
+Symptoms
+Findings
+Diagnosis
+Plan
+
+==================================================
+2. EXAM MODULES
+==================================================
+
+Modules
+History
+Symptoms
+Anterior Segment
+Posterior Segment
+Binocular Vision
+Imaging Summary
+Diagnosis
+Plan
+Final Output
+
+==================================================
+3. HISTORY AND SYMPTOM ENTRY
+==================================================
+
+Chief complaint menu
+Blur
+Near blur
+Distance blur
+Intermittent blur
+Diplopia
+Eyestrain
+Headache
+Neck pain
+Photophobia
+Red eye
+Dryness
+Irritation
+Pain
+FB sensation
+Tearing
+Discharge
+Itching
+Floaters
+Flashes
+Distortion
+Reduced night vision
+Motion sensitivity
+Reading difficulty
+Computer discomfort
+Dizziness
+Vertigo with gaze shift
+
+Symptom qualifiers
+Laterality
+OD
+OS
+OU
+
+Severity
+0 / 5
+1 / 5
+2 / 5
+3 / 5
+4 / 5
+5 / 5
+
+Onset
+acute
+subacute
+chronic
+sudden
+gradual
+intermittent
+episodic
+stable
+progressive
+
+Duration
+hours
+days
+weeks
+months
+years
+constant
+intermittent
+
+Triggers
+reading
+computer
+near work
+distance viewing
+driving
+fatigue
+end of day
+contact lens wear
+bright light
+eye movement
+blinking
+waking
+screen use
+looking down
+head movement
+
+Relief
+rest
+blinking
+closing eye
+artificial tears
+warm compress
+removing CL
+steroid drop
+NSAID
+dark room
+sleep
+glasses off
+glasses on
+
+Associated symptoms
+HA
+eyestrain
+neck pain
+photophobia
+nausea
+motion sensitivity
+dryness
+redness
+itching
+discharge
+pain with eye movement
+floaters
+flashes
+diplopia
+ghosting
+glare
+halos
+
+History blocks
+recent Rx change
+contact lens wearer
+post concussion
+hx strabismus
+hx amblyopia
+hx patching
+hx VT
+hx ocular trauma
+hx ocular surgery
+hx RD
+hx retinal tear
+hx migraine
+hx dry eye
+hx allergies
+hx diabetes
+hx HTN
+family hx glaucoma
+family hx AMD
+family hx RD
+family hx keratoconus
+
+Example symptom output
+Symptoms: HA 4 / 5, eyestrain 3 / 5, neck pain 4 / 5, worse c computer and near work, relieved partially c rest.
+
+==================================================
+4. ANATOMY REGIONS
+==================================================
+
+Anterior segment regions
+Upper lid
+Lower lid
+Upper lid margin
+Lower lid margin
+Upper lashes
+Lower lashes
+Bulbar conjunctiva nasal
+Bulbar conjunctiva temporal
+Bulbar conjunctiva superior
+Bulbar conjunctiva inferior
+Palpebral conjunctiva upper
+Palpebral conjunctiva lower
+Caruncle
+Plica
+Cornea central
+Cornea superior
+Cornea inferior
+Cornea nasal
+Cornea temporal
+Cornea diffuse
+Tear film
+Anterior chamber
+Iris
+Pupil
+Lens
+
+Posterior segment regions
+Vitreous
+Optic nerve
+Disc rim
+Cup
+PPA
+Macula
+Fovea
+Retinal vessels
+Superior arcade
+Inferior arcade
+Temporal retina
+Nasal retina
+Superior retina
+Inferior retina
+Superotemporal midperiphery
+Superonasal midperiphery
+Inferotemporal midperiphery
+Inferonasal midperiphery
+Far peripheral retina 360
+
+Binocular vision / neuro regions
+EOMs
+Pupils
+Cover test distance
+Cover test near
+Distance phoria
+Near phoria
+Fixation disparity
+PFV
+NFV
+Vergence facility
+NPC
+Stereo
+Accommodation
+Color vision
+VF screening
+
+==================================================
+5. ANTERIOR SEGMENT FINDING TREES
+==================================================
+
+5A. LIDS
+
+Upper lid / lower lid first menu
+normal
+edema
+erythema
+lesion
+chalazion
+hordeolum
+papilloma
+cyst
+ptosis
+retraction
+entropion
+ectropion
+trichiasis
+notch
+madarosis
+dermatochalasis
+xanthelasma
+PSC
+blepharitis
+other
+
+Lid edema branch
+mild
+mod
+sev
+focal
+diffuse
+tender
+non tender
+warm
+non warm
+transient
+persistent
+
+Lid erythema branch
+mild
+mod
+sev
+diffuse
+focal
+tender
+non tender
+with edema
+without edema
+
+Chalazion branch
+upper
+lower
+internal
+external
+small
+medium
+large
+tender
+non tender
+erythema present
+erythema absent
+expressible
+non expressible
+recurrent
+resolving
+
+Hordeolum branch
+internal
+external
+small
+medium
+large
+tender
+markedly tender
+focal erythema
+diffuse erythema
+with edema
+draining
+non draining
+
+Papilloma branch
+small
+medium
+large
+pedunculated
+sessile
+stable
+new
+lash line involvement
+margin involvement
+
+PSC branch
+mild
+mod
+sev
+focal
+diffuse
+tender
+non tender
+warm
+non warm
+preseptal edema
+no orbital signs
+
+Blepharitis branch
+anterior
+posterior
+mixed
+mild
+mod
+sev
+collarettes
+debris
+telangiectasia
+hyperemia
+crusting
+frothing
+
+Trichiasis branch
+single lash
+multiple lashes
+touching K
+not touching K
+upper
+lower
+epilation advised
+K staining present
+K staining absent
+
+Entropion branch
+involutional
+spastic
+mild
+mod
+sev
+lash K touch
+no lash K touch
+
+Ectropion branch
+mild
+mod
+sev
+punctal eversion
+exposure
+epiphora
+
+Ptosis branch
+mild
+mod
+sev
+unilateral
+bilateral
+pupil clear
+pupil threatened
+fatigable
+non fatigable
+
+Dermatochalasis branch
+mild
+mod
+sev
+upper lid hooding
+lash touch
+visual axis encroachment absent
+visual axis encroachment present
+
+5B. LID MARGIN / MGD
+
+Upper lid margin / lower lid margin first menu
+normal
+MGD
+blepharitis
+telangiectasia
+scurf
+collarettes
+notching
+keratinization
+foaming
+irregularity
+meibomian plugging
+other
+
+MGD branch
+mild
+mod
+sev
+capped glands
+inspissation
+turbid meibum
+thickened secretions
+reduced expressibility
+telangiectasia
+frothing
+lid margin hyperemia
+
+Blepharitis branch
+anterior
+posterior
+mixed
+mild
+mod
+sev
+scurf
+collarettes
+crusting
+hyperemia
+ulcerative changes absent
+ulcerative changes present
+
+5C. LASHES
+
+Upper lashes / lower lashes first menu
+normal
+madarosis
+trichiasis
+poliosis
+debris
+collarettes
+misdirected lashes
+other
+
+Madarosis branch
+focal
+diffuse
+upper
+lower
+mild
+mod
+sev
+
+5D. BULBAR CONJUNCTIVA
+
+Bulbar conjunctiva first menu
+normal
+injection
+chemosis
+SCH
+pinguecula
+pterygium
+nevus
+PAM
+cyst
+concretions
+staining
+follicles
+papillae
+scarring
+FB
+other
+
+Injection branch
+trace
+1 +
+2 +
+3 +
+4 +
+sectoral
+diffuse
+nasal
+temporal
+superior
+inferior
+blanches
+does not blanch
+
+Chemosis branch
+trace
+1 +
+2 +
+3 +
+diffuse
+focal
+with injection
+without injection
+
+SCH branch
+small
+medium
+large
+nasal
+temporal
+inferior
+360
+flat
+bullous
+
+Pinguecula branch
+nasal
+temporal
+elevated
+non elevated
+inflamed
+non inflamed
+staining absent
+staining present
+
+Pterygium branch
+nasal
+temporal
+small
+medium
+large
+encroaching K
+inflamed
+non inflamed
+staining absent
+staining present
+
+Nevus branch
+nasal
+temporal
+small
+medium
+large
+cysts present
+cysts absent
+stable by hx
+new by hx
+flat
+slightly elevated
+
+PAM branch
+focal
+multifocal
+flat
+irregular borders
+extension onto K absent
+extension onto K present
+
+Cyst branch
+small
+medium
+large
+clear
+translucent
+mobile
+non tender
+
+Follicles branch
+trace
+1 +
+2 +
+3 +
+upper
+lower
+diffuse
+
+Papillae branch
+trace
+1 +
+2 +
+3 +
+upper tarsal
+lower tarsal
+diffuse
+
+5E. PALPEBRAL CONJUNCTIVA
+
+Palpebral conjunctiva first menu
+normal
+papillae
+follicles
+hyperemia
+GPC
+scarring
+FB
+other
+
+GPC branch
+mild
+mod
+sev
+upper tarsal
+mucus present
+CL related suspected
+
+5F. CARUNCLE / PLICA
+
+Caruncle / plica first menu
+normal
+injection
+cyst
+pigment
+lesion
+inflammation
+other
+
+5G. CORNEA
+
+Cornea first menu
+normal
+staining
+SPK
+PEE
+filaments
+abrasion
+ulcer
+infiltrate
+scar
+edema
+guttata
+ABMD
+pannus
+NV
+dellen
+foreign body
+rust ring
+thinning
+ectasia
+striae
+hydrops
+other
+
+Staining branch
+trace
+1 +
+2 +
+3 +
+4 +
+inferior
+superior
+central
+nasal
+temporal
+diffuse
+interpalpebral
+exposure pattern
+linear
+patchy
+
+SPK branch
+trace
+1 +
+2 +
+3 +
+4 +
+inferior
+superior
+central
+diffuse
+interpalpebral
+
+PEE branch
+trace
+1 +
+2 +
+3 +
+4 +
+inferior
+superior
+diffuse
+central
+
+Filaments branch
+few
+multiple
+inferior
+central
+painful
+mucus present
+
+Abrasion branch
+small
+medium
+large
+central
+paracentral
+peripheral
+linear
+irregular
+staining positive
+Seidel negative
+Seidel positive
+
+Ulcer branch
+small
+medium
+large
+central
+paracentral
+peripheral
+epi defect present
+stromal infiltrate present
+AC rxn present
+pain present
+CL related suspected
+focal thinning absent
+focal thinning present
+
+Infiltrate branch
+small
+medium
+large
+central
+peripheral
+sterile appearing
+infectious appearing
+overlying stain absent
+overlying stain present
+
+Scar branch
+faint
+dense
+central
+paracentral
+peripheral
+old
+stable
+post ulcer
+post trauma
+
+Edema branch
+trace
+1 +
+2 +
+3 +
+microcystic
+stromal
+diffuse
+focal
+Descemet folds absent
+Descemet folds present
+
+Guttata branch
+trace
+1 +
+2 +
+3 +
+central
+diffuse
+
+ABMD branch
+mild
+mod
+sev
+map
+dot
+fingerprint
+central
+superior
+recurrent erosion hx
+
+Pannus branch
+sup
+inf
+nasal
+temporal
+trace
+1 +
+2 +
+3 +
+
+NV branch
+sup
+inf
+360
+deep
+superficial
+active
+ghost vessels
+
+Foreign body branch
+metallic
+organic
+central
+paracentral
+peripheral
+superficial
+embedded
+rust ring absent
+rust ring present
+removed
+not removed
+
+Thinning branch
+peripheral
+central
+focal
+diffuse
+mild
+mod
+sev
+
+Ectasia branch
+inferior steepening
+paracentral cone
+apical thinning
+scissoring reflex
+Fleischer ring
+Vogt striae
+
+Hydrops branch
+acute
+corneal edema marked
+painful
+photophobic
+
+5H. TEAR FILM
+
+Tear film first menu
+normal
+reduced TBUT
+debris
+froth
+oily layer poor
+meniscus low
+meniscus high
+stringy mucus
+foam
+other
+
+Reduced TBUT branch
+mild
+mod
+sev
+instant breakup
+inferior breakup
+diffuse breakup
+
+Meniscus low branch
+mild
+mod
+sev
+
+5I. ANTERIOR CHAMBER
+
+Anterior chamber first menu
+normal
+cell
+flare
+shallow
+deep
+hypopyon
+hyphema
+angle narrow by VH
+other
+
+Cell branch
+trace
+0.5 +
+1 +
+2 +
+3 +
+4 +
+
+Flare branch
+trace
+1 +
+2 +
+3 +
+4 +
+
+Shallow branch
+mild
+mod
+marked
+quiet
+angle concern noted
+
+Hyphema branch
+microhyphema
+layered
+traumatic suspected
+IOP monitor advised
+
+5J. IRIS
+
+Iris first menu
+normal
+nevus
+atrophy
+synechiae
+transillumination defect
+heterochromia
+NVI
+coloboma
+irregular pupil
+other
+
+Iris nevus branch
+small
+medium
+large
+flat
+elevated
+stable by hx
+
+Atrophy branch
+sectoral
+diffuse
+post inflammation suspected
+
+Synechiae branch
+posterior
+focal
+diffuse
+
+NVI branch
+fine
+florid
+360
+sectoral
+
+5K. PUPIL / LENS (anterior view if charted here)
+
+Pupil first menu
+normal
+irregular
+peaked
+mid dilated
+small
+pharm dilated
+other
+
+Lens first menu
+clear
+NS
+CSC
+PSC
+ACC
+PCIOL
+ACIOL
+phacodonesis
+other
+
+NS branch
+trace
+1 +
+2 +
+3 +
+4 +
+
+CSC branch
+trace
+1 +
+2 +
+3 +
+4 +
+
+PSC branch
+trace
+1 +
+2 +
+3 +
+4 +
+central
+paracentral
+
+ACC branch
+trace
+1 +
+2 +
+3 +
+4 +
+
+PCIOL branch
+centered
+decentered
+clear capsule
+PCO present
+
+PCO branch via PCIOL
+trace
+1 +
+2 +
+3 +
+central
+visually significant
+non visually significant
+
+==================================================
+6. POSTERIOR SEGMENT FINDING TREES
+==================================================
+
+6A. VITREOUS
+
+Vitreous first menu
+normal
+syneresis
+PVD
+pigment cells
+vitreous heme
+cells
+asteroid hyalosis
+vitritis
+other
+
+PVD branch
+acute symptomatic
+chronic
+Weiss ring present
+floaters reported
+flashes reported
+
+Pigment cells branch
+trace
+present
+Shafer positive
+
+Vitreous heme branch
+trace
+mild
+mod
+dense
+view reduced
+
+Vitritis branch
+trace
+1 +
+2 +
+3 +
+snowballs absent
+snowballs present
+
+6B. OPTIC NERVE / DISC
+
+Optic nerve first menu
+normal
+cupping
+edema
+elevated disc
+pallor
+tilted disc
+PPA
+drusen
+heme
+anomalous disc
+crowded disc
+other
+
+Cupping branch
+small
+mod
+large
+asymmetric
+vertical enlargement
+thin inf rim
+thin sup rim
+notching absent
+notching present
+
+Edema branch
+mild
+mod
+marked
+blurred margins
+elevation
+hyperemia
+Paton lines absent
+Paton lines present
+heme absent
+heme present
+SVP absent
+SVP present
+
+Pallor branch
+temporal
+diffuse
+sectoral
+mild
+mod
+marked
+
+Tilted disc branch
+myopic appearance
+oblique insertion
+PPA present
+stable
+
+PPA branch
+trace
+mild
+mod
+marked
+temporal
+360
+
+Drusen branch
+buried
+visible
+elevated lumpy contour
+autofluorescence positive if known
+
+Disc heme branch
+splinter
+inferotemporal
+superotemporal
+isolated
+recurrent by hx
+
+Crowded disc branch
+small cup
+hyperopia suspected
+no true edema features
+
+6C. MACULA / FOVEA
+
+Macula first menu
+normal
+drusen
+RPE change
+ERM
+hole
+pucker
+edema
+SRF
+heme
+scar
+atrophy
+PED
+CNV suspicious
+CSR
+other
+
+Drusen branch
+few
+multiple
+small
+intermediate
+large
+hard
+soft
+extrafoveal
+subfoveal
+
+RPE change branch
+mottling
+clumping
+atrophy
+migration
+focal
+diffuse
+
+ERM branch
+trace
+mild
+mod
+sev
+foveal distortion absent
+foveal distortion present
+
+Hole branch
+lamellar
+full thickness suspected
+small
+medium
+operculum absent
+operculum present
+
+Edema branch
+mild
+mod
+marked
+cystic change suspected
+foveal involvement absent
+foveal involvement present
+
+SRF branch
+trace
+mild
+mod
+subfoveal
+extrafoveal
+
+Heme branch
+dot blot
+flame
+subretinal
+small
+medium
+large
+foveal involvement absent
+foveal involvement present
+
+Atrophy branch
+RPE
+geographic
+central
+extrafoveal
+small
+medium
+large
+
+PED branch
+small
+medium
+large
+serous appearing
+drusenoid appearing
+
+CSR branch
+acute
+chronic
+focal SRF
+RPE leak suspected by hx / imaging summary
+
+6D. RETINAL VESSELS
+
+Vessels first menu
+normal
+AV nicking
+attenuation
+tortuosity
+sheathing
+NV
+occlusion signs
+embolus
+copper wiring
+silver wiring
+other
+
+AV nicking branch
+mild
+mod
+marked
+
+Attenuation branch
+mild
+mod
+marked
+generalized
+focal
+
+Tortuosity branch
+mild
+mod
+marked
+venous
+arterial
+
+Sheathing branch
+focal
+diffuse
+arterial
+venous
+
+NV branch
+NVE
+NVD
+fine
+florid
+with pre retinal heme
+without heme
+
+Embolus branch
+Hollenhorst appearing
+calcific appearing
+platelet fibrin appearing
+branch point
+arteriole
+
+6E. RETINA GENERAL LESIONS
+
+Peripheral retina first menu
+normal
+pigmented lesion
+non pigmented lesion
+hole
+tear
+lattice
+WWP
+pavingstone
+tuft
+RPE change
+degeneration
+atrophy
+scar
+heme
+CWS
+exudate
+microaneurysm
+NV
+detachment
+other
+
+Pigmented lesion branch
+nevus
+CHRPE
+bear tracks
+RPE hyperplasia
+pigment clumping
+suspicious melanocytic lesion
+other
+
+Nevus branch
+flat
+min elevated
+elevated
+small
+medium
+large
+exact size
+drusen present
+drusen absent
+orange pigment present
+orange pigment absent
+SRF present
+SRF absent
+distinct margins
+indistinct margins
+photo documented
+stable by hx
+new by hx
+
+CHRPE branch
+small
+medium
+large
+flat
+lacunae present
+lacunae absent
+sharp borders
+single
+multiple
+
+Bear tracks branch
+single cluster
+multiple clusters
+flat
+well demarcated
+
+Suspicious melanocytic lesion branch
+elevated
+orange pigment present
+SRF present
+indistinct margins
+growth by hx
+large size
+referral suggested
+
+Hole branch
+atrophic
+operculated
+small
+medium
+large
+surrounding cuff absent
+surrounding cuff present
+pigment absent
+pigment present
+with SRF absent
+with SRF present
+
+Tear branch
+horseshoe
+flap
+small
+medium
+large
+acute appearing
+pigment present
+heme present
+SRF absent
+SRF present
+traction visible
+symptomatic by hx
+
+Lattice branch
+small area
+broad area
+pigment present
+atrophic holes absent
+atrophic holes present
+superior
+inferior
+bilateral if used in summary
+
+WWP branch
+small
+broad
+temporal
+nasal
+superior
+inferior
+
+Pavingstone branch
+single
+multiple
+inferior
+temporal
+benign appearance
+
+Tuft branch
+cystic
+non cystic
+small
+focal
+
+Scar branch
+chorioretinal
+laser
+old inflammation
+old trauma
+flat
+pigmented border
+
+Heme branch
+dot blot
+flame
+pre retinal
+subretinal
+small
+medium
+large
+localized
+diffuse
+
+CWS branch
+single
+multiple
+small
+medium
+with HTN / DM context in assessment if relevant
+
+Exudate branch
+hard exudate
+circinate
+focal
+diffuse
+macular involvement absent
+macular involvement present
+
+Microaneurysm branch
+few
+multiple
+focal
+diffuse
+background DR context
+
+Detachment branch
+localized
+bullous
+macula on suspected
+macula off suspected
+urgent referral
+
+==================================================
+7. BINOCULAR VISION / NEURO ENTRY TREES
+==================================================
+
+7A. EOMS
+
+EOMs first menu
+full
+restriction
+overaction
+underaction
+pain on movement
+nystagmus
+other
+
+Restriction branch
+mild
+mod
+sev
+horizontal
+vertical
+specific gaze entered separately if desired
+
+Nystagmus branch
+endpoint
+gaze evoked
+horizontal
+vertical
+torsional
+
+7B. PUPILS
+
+Pupils first menu
+PERRL
+RAPD absent
+RAPD present
+anisocoria
+sluggish
+non reactive
+other
+
+RAPD branch
+trace
+1 +
+2 +
+3 +
+4 +
+
+Anisocoria branch
+physiologic appearing
+greater in dark
+greater in light
+stable by hx
+new by hx
+
+7C. COVER TEST / PHORIA
+
+Cover test distance first menu
+ortho
+eso
+exo
+RHT
+LHT
+XP
+EP
+intermittent XT
+constant XT
+intermittent ET
+constant ET
+other
+
+Cover test near first menu
+ortho
+eso
+exo
+RHT
+LHT
+XP
+EP
+intermittent XT
+constant XT
+intermittent ET
+constant ET
+other
+
+Phoria qualifiers
+exact prism value
+small
+moderate
+large
+greater at near
+greater at distance
+comitant
+incomitant
+
+7D. FIXATION DISPARITY
+
+Fixation disparity first menu
+ortho
+eso
+exo
+small
+mod
+large
+symptomatic
+asymptomatic
+greater at near
+greater at distance
+
+7E. PFV / NFV
+
+PFV first menu
+normal
+reduced
+markedly reduced
+blur break recovery values entered
+failed Sheard
+other
+
+NFV first menu
+normal
+reduced
+markedly reduced
+blur break recovery values entered
+other
+
+7F. VERGENCE FACILITY
+
+Vergence facility first menu
+normal
+reduced
+difficulty BO
+difficulty BI
+exact cpm
+fatigue induced reduction
+
+7G. NPC
+
+NPC first menu
+normal
+receded
+break and recovery values entered
+symptomatic
+asymptomatic
+
+7H. STEREO
+
+Stereo first menu
+normal
+reduced
+absent
+exact seconds of arc if entered
+
+7I. ACCOMMODATION
+
+Accommodation first menu
+normal
+reduced amplitude
+ill sustained
+spasm suspected
+facility reduced
+other
+
+==================================================
+8. IMAGING SUMMARY BLOCKS
+==================================================
+
+Imaging is optional summary text, not direct device integration in MVP.
+
+OCT ONH summary options
+RNFL WNL
+RNFL thin sup
+RNFL thin inf
+RNFL thin temp
+GCL WNL
+GCL thin
+asymmetry noted
+poor signal
+disc edema features absent
+disc edema features present
+
+OCT macula summary options
+foveal contour WNL
+ERM present
+IRF absent
+IRF present
+SRF absent
+SRF present
+PED absent
+PED present
+outer retinal disruption
+atrophy
+poor signal
+
+UWF / fundus photo summary options
+baseline photo obtained
+lesion documented
+no interval comparison available
+stable to prior photo
+change suspected vs prior
+
+VF screening summary options
+WNL
+non specific defects
+sup defect
+inf defect
+unreliable
+needs formal VF
+
+Topography summary options
+regular astigmatism
+inf steepening
+asymmetric bowtie
+KCN suspect
+KCN likely
+stable vs prior
+progression suspected
+
+==================================================
+9. DIAGNOSIS LIST FOR MVP
+==================================================
+
+External / lid
+MGD
+anterior blepharitis
+posterior blepharitis
+mixed blepharitis
+chalazion
+internal hordeolum
+external hordeolum
+trichiasis
+entropion
+ectropion
+dermatochalasis
+ptosis
+PSC
+papilloma
+xanthelasma
+
+Conjunctiva
+allergic conjunctivitis
+viral conjunctivitis
+bacterial conjunctivitis
+episcleritis
+pinguecula
+pingueculitis
+pterygium
+conj nevus
+PAM
+SCH
+conj cyst
+GPC
+dry eye related conjunctival staining
+
+Cornea / ocular surface
+dry eye disease
+exposure keratopathy
+SPK
+PEE
+RCE
+corneal abrasion
+corneal foreign body
+corneal ulcer
+sterile infiltrate
+infectious keratitis suspect
+ABMD
+KCN
+corneal edema
+Fuchs endothelial dystrophy
+contact lens related irritation
+contact lens overwear
+
+AC / iris / lens
+anterior uveitis
+narrow angle suspect
+hyphema
+iris nevus
+PCIOL
+cataract NS
+cataract CSC
+cataract PSC
+PCO
+
+Posterior segment
+PVD
+vitreous syneresis
+vitreous hemorrhage
+disc edema
+optic atrophy
+glaucomatous cupping suspect
+tilted disc
+disc drusen
+choroidal nevus
+CHRPE
+retinal hole
+retinal tear
+lattice degeneration
+WWP
+pavingstone degeneration
+retinal heme
+CWS
+background diabetic retinopathy
+hypertensive retinopathy
+ERM
+macular hole suspect
+dry AMD
+wet AMD suspect
+CSR
+macular edema
+RPE mottling
+chorioretinal scar
+retinal detachment suspect
+
+Binocular vision / neuro
+CI
+DI
+basic exophoria
+basic esophoria
+intermittent XT
+intermittent ET
+fixation disparity symptomatic exo
+fixation disparity symptomatic eso
+accommodative insufficiency
+mTBI related visual dysfunction
+asthenopia
+non specific binocular vision dysfunction
+RAPD present
+EOM restriction
+
+==================================================
+10. PLAN BLOCKS FOR MVP
+==================================================
+
+10A. Ocular surface / lid
+
+MGD plan blocks
+warm compresses
+lid hygiene
+PFAT PRN
+omega 3 discussion
+environmental modification
+blink awareness
+screen break advice
+consider anti inflammatory drop if persistent
+monitor symptoms
+follow up PRN
+
+Blepharitis plan blocks
+lid hygiene
+hypochlor spray / wipe
+warm compresses
+PFAT PRN
+consider topical AB / steroid if inflamed
+review chronicity
+follow up PRN
+
+Chalazion plan blocks
+warm compresses
+lid massage
+monitor resolution
+RTC if enlarging / persistent
+consider referral if persistent
+
+Hordeolum plan blocks
+warm compresses
+lid hygiene
+monitor closely
+consider topical AB if draining lid margin involvement
+consider oral AB if diffuse lid involvement
+RTC if worse
+refer if orbital signs
+
+PSC plan blocks
+monitor progression
+oral AB if clinically indicated
+urgent referral if orbital signs
+RTC if no improvement
+
+Dry eye disease plan blocks
+PFAT QID or PRN
+warm compresses
+lid hygiene
+humidity optimization
+blink modification
+screen break counselling
+consider gel / ointment HS
+consider anti inflammatory therapy if persistent
+monitor symptoms
+
+Corneal abrasion plan blocks
+prophylactic AB if indicated
+PFAT
+pain management
+no CL wear
+RTC recheck
+urgent review if worse
+
+Corneal foreign body plan blocks
+remove FB if possible
+rust ring removal if needed
+topical AB
+PFAT
+no CL wear
+RTC recheck
+urgent review if worse
+
+Corneal ulcer / infiltrate plan blocks
+urgent close follow up
+culture if indicated
+topical AB
+no CL wear
+pain / warning counselling
+refer if central / severe / non responsive
+
+ABMD / RCE plan blocks
+lubrication
+ointment HS
+hypertonic ointment if indicated
+review recurrence
+consider referral if frequent
+
+KCN plan blocks
+avoid eye rubbing
+baseline topo
+monitor progression
+consider CXL referral if progression suspected
+optical correction discussion
+
+10B. Conjunctiva
+
+Allergic conjunctivitis plan blocks
+allergen avoidance
+cold compress
+topical anti allergy drop
+PFAT PRN
+avoid eye rubbing
+monitor symptoms
+
+Viral conjunctivitis plan blocks
+supportive care
+cold compress
+PFAT
+hygiene counselling
+contagion counselling
+RTC if worse
+
+Bacterial conjunctivitis plan blocks
+topical AB
+hygiene counselling
+monitor resolution
+RTC if worse
+
+Episcleritis plan blocks
+lubrication
+topical anti inflammatory if indicated
+monitor resolution
+RTC if pain worsens
+refer if scleritis concern
+
+Pinguecula / pterygium plan blocks
+UV protection
+lubrication
+monitor inflammation
+topical anti inflammatory if indicated
+refer if visually significant / progressive
+
+10C. Lens / AC / iris
+
+Anterior uveitis plan blocks
+cycloplegia if indicated
+topical steroid if managing
+urgent / semi urgent referral as appropriate
+monitor AC reaction
+warning counselling
+
+Narrow angle suspect plan blocks
+gonio / angle evaluation recommended
+educate angle closure symptoms
+refer for LPI assessment if indicated
+
+Cataract plan blocks
+monitor
+update Rx if helpful
+glare counselling
+refer for cataract consult when functionally significant
+
+PCO plan blocks
+monitor
+refer for YAG consult if visually significant
+
+10D. Posterior segment
+
+PVD plan blocks
+retinal detachment precautions reviewed
+educate re new flashes / floaters / curtain / vision loss
+RTC urgently if symptoms worsen
+repeat DFE as indicated
+
+Choroidal nevus plan blocks
+baseline photo
+document size and location
+monitor 6 - 12 mo
+educate re visual change / flashes / floaters
+compare to prior imaging
+refer if suspicious features
+
+CHRPE plan blocks
+baseline photo
+document size and location
+monitor routinely
+
+Retinal hole / tear plan blocks
+RD precautions reviewed
+urgent retinal referral if indicated
+document location and associated SRF
+repeat DFE as indicated
+
+Lattice degeneration plan blocks
+RD precautions reviewed
+document location
+monitor routinely or sooner if symptomatic
+
+Retinal heme / CWS plan blocks
+review systemic risk factors
+BP / glucose follow up as appropriate
+document location and size
+monitor retinal findings
+
+Dry AMD plan blocks
+Amsler education
+monitor
+consider AREDS discussion if indicated
+baseline / serial imaging
+
+Wet AMD suspect / SRF / CNV suspect plan blocks
+urgent retinal referral
+document visual symptoms
+baseline imaging
+warning counselling
+
+ERM plan blocks
+monitor
+Amsler if indicated
+refer if visually significant distortion
+
+CSR plan blocks
+monitor / retinal referral based on severity
+review stress / steroid hx
+document SRF
+Amsler education
+
+Disc edema plan blocks
+urgent assessment / referral
+document symptoms
+VF / pupils / OCT as available
+warning counselling
+
+Glaucomatous cupping suspect plan blocks
+baseline OCT ONH
+VF testing
+IOP / pachy / gonio as available
+monitor for progression
+
+10E. Binocular vision
+
+CI / DI / asthenopia / FD plan blocks
+discuss binocular vision contribution to symptoms
+discuss Rx optimization
+consider relieving prism / Neurolens if clinically indicated
+consider home convergence work if appropriate
+monitor symptom response
+coordinate c allied providers if relevant
+
+mTBI related visual dysfunction plan blocks
+discuss visual contribution to symptoms
+consider symptomatic prism / Neurolens if clinically indicated
+consider rehab coordination
+monitor symptom change
+letter to allied providers if needed
+
+==================================================
+11. TEXT OUTPUT TEMPLATES
+==================================================
+
+History template
+Hx: [chief complaint]. [onset / duration / triggers / relief]. Relevant hx: [selected history blocks].
+
+Symptoms template
+Symptoms: [symptom list c severity and provoking factors].
+
+Finding template general
+[eye] [structure]: [finding] [qualifiers].
+
+Examples
+OS LID: chalazion upper lid, small, non tender, mild focal erythema.
+OU LID MGN: MGD mod c capped glands, inspissation, turbid meibum.
+OS K: SPK 1 + inf, interpalpebral.
+OD ONH: tilted disc c temporal PPA, stable appearance.
+OS RET: choroidal nevus flat ST midperiph approx 1.5 DD c drusen, no orange pigment, no SRF.
+
+Diagnosis template
+Assessment: [selected diagnosis list].
+
+Plan template
+Plan: [selected plan blocks in sentence form].
+
+Combined output example
+Hx: c/o eyestrain and HA worse c near and computer work. Hx strabismus as child, Rx updated < 12 mo.
+Symptoms: HA 4 / 5, eyestrain 3 / 5, neck pain 4 / 5, worse c computer and reading.
+AS: OU LID MGN: MGD mod c capped glands and turbid meibum. OU K: inf SPK 1 +.
+PS: OS RET: choroidal nevus flat ST midperiph approx 1.5 DD c drusen, no orange pigment, no SRF.
+Assessment: MGD, dry eye disease, choroidal nevus.
+Plan: warm compresses, lid hygiene, PFAT PRN. Baseline fundus photo, document lesion size and location, monitor annually, educate re retinal symptoms.
+
+==================================================
+12. MVP BUILD ORDER
+==================================================
+
+Phase 1
+History and symptom entry
+Anterior and posterior anatomy map
+Common contextual finding trees
+Basic text generator
+
+Phase 2
+Binocular vision entry
+Diagnosis list selection
+Plan block selection
+Copy / export output
+
+Phase 3
+Additional uncommon findings
+Provider favorites
+Copy to fellow eye
+Copy forward prior text
+Imaging summary blocks
+
+==================================================
+13. MINIMUM DEVELOPER REQUIREMENTS
+==================================================
+
+Need interactive anatomy map with regions
+Need configurable finding trees stored as data, not hard coded
+Need text output templates
+Need editable diagnosis catalog
+Need editable plan block catalog
+Need fast touch interface optimized for tablet use
+
+End of file

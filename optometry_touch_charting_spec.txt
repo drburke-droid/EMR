@@ -1,0 +1,274 @@
+OPTOMETRY TOUCH-BASED CHARTING SYSTEM SPEC (MVP)
+
+Purpose This system is designed to allow rapid clinical charting for
+optometry using a touch-based anatomy interface. The doctor taps
+structures of the eye, selects contextual findings, and the system
+builds structured clinical descriptions that can be exported as text and
+pasted into an existing EMR.
+
+The system focuses on fast entry of: Symptoms History Clinical findings
+Diagnosis Treatment plan
+
+This initial version does NOT include: AI diagnosis Billing Scheduling
+EMR replacement Insurance processing
+
+The output is text-based documentation suitable for pasting into an
+existing EMR.
+
+------------------------------------------------------------------------
+
+CORE CONCEPT
+
+Instead of typing exam findings, the doctor taps an eye diagram and
+selects findings through progressively narrowing contextual menus.
+
+Example workflow:
+
+1.  Tap retina diagram in superotemporal region
+2.  Menu appears: pigmented lesion, break, degeneration, hemorrhage
+3.  Select pigmented lesion
+4.  Menu appears: nevus, CHRPE, pigment clumping
+5.  Select nevus
+6.  Menu appears: flat, minimally elevated, elevated
+7.  Select flat
+8.  Menu appears: small, medium, large, exact size
+
+The system automatically builds a structured description of the finding.
+
+Example generated text:
+
+OS RET: choroidal nevus 2^ flat pigmented lesion ST midperiphery approx
+1.5 DD with overlying drusen, no orange pigment, no SRF, margins
+distinct.
+
+------------------------------------------------------------------------
+
+PRIMARY GOALS
+
+1.  Extremely fast chart entry
+2.  Consistent documentation
+3.  Detailed medico‑legal descriptions
+4.  Minimal typing
+5.  Exportable structured text
+
+------------------------------------------------------------------------
+
+SYSTEM MODULES
+
+1.  Patient Encounter Screen
+2.  History / Symptom Entry
+3.  Anterior Segment Charting
+4.  Posterior Segment Charting
+5.  Binocular Vision Entry
+6.  Diagnosis Selection
+7.  Treatment Plan Selection
+8.  Text Output Generator
+
+------------------------------------------------------------------------
+
+PATIENT ENCOUNTER SCREEN
+
+Displays: Patient information Chief complaint Exam modules Live note
+preview
+
+The note preview automatically updates as findings are entered.
+
+------------------------------------------------------------------------
+
+HISTORY / SYMPTOM ENTRY
+
+Common symptoms are selectable by tapping.
+
+Examples:
+
+Headache Eyestrain Blur Photophobia Dryness Redness Pain Floaters
+Flashes Diplopia Foreign body sensation Computer discomfort Neck pain
+Motion sensitivity
+
+Each symptom can be qualified with:
+
+Laterality Severity Onset Duration Frequency Triggers Relief factors
+
+Example generated text:
+
+Symptoms: HA 4/5, eyestrain 3/5, neck pain 4/5 worse with computer work.
+
+------------------------------------------------------------------------
+
+ANTERIOR SEGMENT CHARTING
+
+OD and OS diagrams display:
+
+Lids Lashes Meibomian glands Conjunctiva Cornea Anterior chamber Iris
+Lens
+
+Doctor taps structure.
+
+Contextual menu appears with likely findings.
+
+Example: lower lid margin
+
+Menu options:
+
+MGD Blepharitis Trichiasis Chalazion Hordeolum Papilloma Entropion
+Ectropion Madarosis
+
+Example MGD branch:
+
+MGD → mild / moderate / severe → capped glands / turbid meibum /
+telangiectasia
+
+Generated text example:
+
+LID: MGD mod with capped glands and turbid meibum.
+
+------------------------------------------------------------------------
+
+POSTERIOR SEGMENT CHARTING
+
+OD and OS fundus diagrams.
+
+Supports:
+
+Regional taps Precise coordinate plotting
+
+Structures include:
+
+Optic nerve Macula Vessels Peripheral retina Vitreous
+
+Example: pigmented lesion branch
+
+Pigmented lesion → nevus → CHRPE → RPE hyperplasia
+
+Nevus branch:
+
+Nevus → flat / elevated → size selection → drusen present / absent →
+orange pigment present / absent → SRF present / absent
+
+Generated text example:
+
+RET: choroidal nevus flat approx 1.5 DD ST midperiphery with drusen
+present, no SRF.
+
+------------------------------------------------------------------------
+
+BINOCULAR VISION ENTRY
+
+Structured entry fields for:
+
+Cover test Distance phoria Near phoria Vergence ranges Vergence facility
+NPC Stereo Pupils EOMs
+
+Example output:
+
+Cover test: 2 XP distance, 4 XP near PFV reduced Vergence facility 7 cpm
+difficulty BO
+
+------------------------------------------------------------------------
+
+FINDING STRUCTURE
+
+Each finding stores:
+
+Eye Structure Substructure Location Primary finding Qualifiers
+
+Example data object:
+
+Eye: OS Structure: retina Location: superotemporal midperiphery Finding:
+choroidal nevus Elevation: flat Size: 1.5 DD Drusen: present Orange
+pigment: absent SRF: absent
+
+------------------------------------------------------------------------
+
+DIAGNOSIS SELECTION
+
+The doctor selects diagnoses manually.
+
+Common diagnoses are suggested based on structures examined.
+
+Examples:
+
+Dry eye disease MGD Blepharitis Choroidal nevus Retinal hole Retinal
+tear Lattice degeneration Episcleritis Convergence insufficiency
+
+The doctor can also search and add diagnoses.
+
+------------------------------------------------------------------------
+
+TREATMENT PLAN SELECTION
+
+Each diagnosis has selectable plan blocks.
+
+Example: choroidal nevus
+
+Plan options:
+
+Baseline photo documentation Record size and location Monitor annually
+Educate patient re flashes / floaters Compare with prior imaging
+
+Example output:
+
+Plan: baseline fundus photo, document lesion size and location, monitor
+annually, educate patient re retinal symptoms.
+
+------------------------------------------------------------------------
+
+NOTE GENERATION
+
+The system compiles findings into text suitable for EMR paste.
+
+Output sections:
+
+History Symptoms Exam findings Diagnosis Plan
+
+Example output:
+
+HPI: Pt reports HA 4/5, eyestrain 3/5, neck pain 4/5 worse with
+prolonged computer use.
+
+Anterior Segment: LID: MGD mod with capped glands and turbid meibum. K:
+inferior SPK 1+.
+
+Posterior Segment: OS RET: choroidal nevus flat approx 1.5 DD ST
+midperiphery with drusen present, no SRF.
+
+Assessment: Choroidal nevus MGD Dry eye disease
+
+Plan: Baseline fundus photo. Monitor nevus annually. Warm compresses and
+lid hygiene. Artificial tears PRN.
+
+------------------------------------------------------------------------
+
+DATA STRUCTURE
+
+Key database tables:
+
+patients encounters symptoms symptom_qualifiers exam_findings
+finding_locations finding_qualifiers diagnoses treatment_plans
+generated_notes
+
+------------------------------------------------------------------------
+
+ANATOMY MAP
+
+Anatomy diagrams are interactive.
+
+Each region contains:
+
+Region ID Structure Substructure Coordinates
+
+Example:
+
+retina_ST_midperiphery cornea_inferior lid_margin_lower
+
+------------------------------------------------------------------------
+
+INITIAL MVP SCOPE
+
+The first version should include:
+
+Touch anatomy charting Contextual finding trees Symptom entry Diagnosis
+selection Treatment plan blocks Text output generator
+
+The system should generate chart-ready text that can be copied and
+pasted into an existing EMR.
