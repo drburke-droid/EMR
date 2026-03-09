@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { useEncounterStore } from "./store/encounterStore";
 import SymptomEntry from "./components/entry/SymptomEntry";
-import AnteriorMap from "./components/anatomy/AnteriorMap";
+import AnteriorPhoto from "./components/anatomy/AnteriorPhoto";
 import PosteriorMap from "./components/anatomy/PosteriorMap";
 import DiagnosisSearch from "./components/entry/DiagnosisSearch";
 import PlanSelector from "./components/entry/PlanSelector";
@@ -49,7 +49,7 @@ const WIN_DEFS: WinDef[] = [
 function WindowContent({ id }: { id: string }) {
   switch (id) {
     case "sx":   return <SymptomEntry />;
-    case "as":   return <AnteriorMap />;
+    case "as":   return <AnteriorPhoto />;
     case "ps":   return <PosteriorMap />;
     case "dx":   return <DiagnosisSearch />;
     case "plan": return <PlanSelector />;
