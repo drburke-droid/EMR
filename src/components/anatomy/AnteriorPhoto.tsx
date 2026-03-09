@@ -5,11 +5,12 @@ import { rankFindingsForRegion } from "../../utils/clinicalInference";
 import RingSelector from "../menus/RingSelector";
 import {
   CX, CY, PUPIL_R, IRIS_R, LIMBUS_R, SCLERA_R, PX_PER_MM,
-  DEPTH_LAYERS,
+  getDepthStack,
   mapClickToLocation,
   computeBrushBounds,
   resolveRegionForDepth,
   type EyeLocation,
+  type DepthLayer,
 } from "../../utils/eyeCoordinates";
 
 /* ================================================================
@@ -63,11 +64,17 @@ export default function AnteriorPhoto() {
   const brush = BRUSH_SIZES[brushIdx];
   const isPointMode = brush.mm === 0;
 
+  /* ── Derived: depth stack for the current XY zone ────────────── */
+  const depthStack: DepthLayer[] = useMemo(
+    () => (xyLocation ? getDepthStack(xyLocation.zone) : []),
+    [xyLocation],
+  );
+
   /* ── Derived: which finding region to use ───────────────────── */
   const effectiveRegionId = useMemo(() => {
     if (!xyLocation) return null;
     if (!depthId) return xyLocation.regionId;
-    return resolveRegionForDepth(depthId, xyLocation.regionId);
+    return resolveRegionForDepth(depthId, xyLocation);
   }, [xyLocation, depthId]);
 
   const regionData = effectiveRegionId
@@ -184,7 +191,7 @@ export default function AnteriorPhoto() {
     const parts: string[] = [];
     parts.push(xyLocation.description);
     if (depthId) {
-      const layer = DEPTH_LAYERS.find((l) => l.id === depthId);
+      const layer = depthStack.find((l) => l.id === depthId);
       if (layer) parts.push(layer.label.toLowerCase());
     }
     if (extentDesc) parts.push(extentDesc);
@@ -476,7 +483,7 @@ export default function AnteriorPhoto() {
           </svg>
         </div>
 
-        {/* ── Cross-section ───────────────────────────────────── */}
+        {/* ── Cross-section (dynamic based on XY zone) ─────────── */}
         <div style={{
           flex: 1, minWidth: 85, maxWidth: 120,
           display: "flex", flexDirection: "column",
@@ -485,21 +492,32 @@ export default function AnteriorPhoto() {
           overflow: "hidden",
           transition: "border-color 200ms ease",
         }}>
+          {/* Header label changes based on zone */}
           <div style={{
             fontSize: "0.55rem", fontWeight: 700, color: "var(--text-secondary)",
             textTransform: "uppercase", letterSpacing: "0.06em",
             padding: "4px 6px 1px", textAlign: "center",
           }}>
-            Surface ↓
+            {depthStack.length === 0
+              ? "Depth"
+              : xyLocation && (xyLocation.zone === "upper_lid" || xyLocation.zone === "lower_lid")
+                ? "External ↓"
+                : "Surface ↓"}
           </div>
 
           <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "2px 3px", gap: 1, minHeight: 0 }}>
-            {DEPTH_LAYERS.map((layer, i) => {
+            {depthStack.length === 0 && (
+              <div style={{
+                flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "0.6rem", color: "var(--slate-400)", textAlign: "center", padding: 8,
+              }}>
+                Tap eye first
+              </div>
+            )}
+            {depthStack.map((layer, i) => {
               const isActive = step === "z";
               const isSel = depthId === layer.id;
-              // Show group separators
-              const prevGroup = i > 0 ? DEPTH_LAYERS[i - 1].group : null;
-              const showSep = prevGroup !== null && prevGroup !== layer.group;
+              const showSep = layer.separator && i > 0;
 
               return (
                 <div key={layer.id} style={{ display: "contents" }}>
@@ -548,7 +566,11 @@ export default function AnteriorPhoto() {
             textTransform: "uppercase", letterSpacing: "0.06em",
             padding: "1px 6px 4px", textAlign: "center",
           }}>
-            ↑ Deep
+            {depthStack.length > 0
+              ? (xyLocation && (xyLocation.zone === "upper_lid" || xyLocation.zone === "lower_lid")
+                  ? "↑ Internal"
+                  : "↑ Deep")
+              : ""}
           </div>
         </div>
       </div>
@@ -571,7 +593,7 @@ export default function AnteriorPhoto() {
               {xyLocation.clockHour}h
             </span>
             {depthId && (() => {
-              const dl = DEPTH_LAYERS.find((l) => l.id === depthId);
+              const dl = depthStack.find((l) => l.id === depthId);
               return dl ? (
                 <span className="info-chip" style={{
                   fontSize: "0.65rem",
