@@ -1,13 +1,389 @@
 @import "tailwindcss";
 
+/* ==========================================
+   DESIGN SYSTEM — Design Tokens
+   ========================================== */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+:root {
+  /* Core palette — navy / slate */
+  --navy-900: #0a1628;
+  --navy-800: #0f2240;
+  --navy-700: #142e54;
+  --navy-600: #1a3a68;
+  --navy-500: #24508a;
+  --navy-400: #3a7bd5;
+  --navy-300: #6ba3eb;
+  --navy-200: #a8ccf5;
+  --navy-100: #dbe9fc;
+  --navy-50:  #f0f5ff;
+
+  --cyan-500: #00b8d4;
+  --cyan-400: #26c6da;
+  --emerald-500: #10b981;
+
+  --slate-900: #0f172a;
+  --slate-800: #1e293b;
+  --slate-700: #334155;
+  --slate-600: #475569;
+  --slate-500: #64748b;
+  --slate-400: #94a3b8;
+  --slate-300: #cbd5e1;
+  --slate-200: #e2e8f0;
+  --slate-100: #f1f5f9;
+  --slate-50:  #f8fafc;
+  --white:     #ffffff;
+
+  /* Semantic */
+  --bg:             var(--slate-50);
+  --surface:        var(--white);
+  --text:           var(--slate-800);
+  --text-secondary: var(--slate-500);
+  --border:         var(--slate-200);
+
+  /* Gradients */
+  --gradient-hero:   linear-gradient(135deg, var(--navy-900) 0%, var(--navy-700) 50%, #1a3a5c 100%);
+  --gradient-accent: linear-gradient(135deg, var(--navy-400) 0%, var(--cyan-500) 100%);
+  --gradient-glow:   linear-gradient(135deg, var(--navy-500) 0%, var(--cyan-500) 100%);
+
+  /* Elevation */
+  --shadow-sm: 0 1px 2px rgba(15,23,42,0.04);
+  --shadow-md: 0 4px 12px rgba(15,23,42,0.06), 0 1px 3px rgba(15,23,42,0.04);
+  --shadow-lg: 0 12px 40px rgba(15,23,42,0.08), 0 4px 12px rgba(15,23,42,0.04);
+  --shadow-xl: 0 24px 64px rgba(15,23,42,0.12), 0 8px 24px rgba(15,23,42,0.06);
+
+  /* Shape */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* Motion */
+  --ease-out:      cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast:   150ms;
+  --duration-normal: 250ms;
+  --duration-slow:   400ms;
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif;
+  font-family: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+/* ==========================================
+   DESIGN SYSTEM — Animations
+   ========================================== */
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(58,123,213,0.2); }
+  50%      { box-shadow: 0 0 36px rgba(58,123,213,0.4); }
+}
+
+.animate-in {
+  animation: fadeSlideUp 0.5s var(--ease-out) both;
+}
+
+/* ==========================================
+   DESIGN SYSTEM — Hero Banner
+   ========================================== */
+
+.hero-banner {
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-banner-bg {
+  position: absolute;
+  inset: 0;
+  background: var(--gradient-hero);
+}
+
+.hero-banner-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 70% 20%,
+    rgba(58,123,213,0.15) 0%,
+    transparent 60%
+  );
+}
+
+.hero-banner-content {
+  position: relative;
+  text-align: center;
+  padding: 32px 24px 40px;
+  color: white;
+}
+
+.hero-banner-content h1 {
+  color: white;
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin-bottom: 4px;
+}
+
+.hero-banner-content .subtitle {
+  color: rgba(255,255,255,0.65);
+  font-size: 0.875rem;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+/* ==========================================
+   DESIGN SYSTEM — Frosted Toolbar
+   ========================================== */
+
+.frosted-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: rgba(15,23,42,0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  color: rgba(255,255,255,0.9);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* ==========================================
+   DESIGN SYSTEM — Cards
+   ========================================== */
+
+.ds-card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  padding: 20px;
+}
+
+.ds-card-elevated {
+  box-shadow: var(--shadow-md);
+  border-color: transparent;
+}
+
+/* ==========================================
+   DESIGN SYSTEM — Mac-Style Windows
+   ========================================== */
+
+.mac-window {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  transition: box-shadow var(--duration-normal) var(--ease-out);
+}
+
+.mac-window:hover {
+  box-shadow: var(--shadow-xl);
+}
+
+.mac-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--slate-100);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.titlebar-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.titlebar-dots span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.titlebar-dots span:nth-child(1) { background: #ff5f57; }
+.titlebar-dots span:nth-child(2) { background: #ffbd2e; }
+.titlebar-dots span:nth-child(3) { background: #27c93f; }
+
+.mac-body {
+  padding: 16px;
+  background: var(--white);
+}
+
+.mac-footer {
+  padding: 6px 14px;
+  background: var(--slate-50);
+  border-top: 1px solid var(--border);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 20px;
+  font-weight: 500;
+}
+
+.mac-footer strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ==========================================
+   DESIGN SYSTEM — Wallpaper Section
+   ========================================== */
+
+.wallpaper-section {
+  background: url('/windows-11-bloom-5120x2880-14423.jpg') center / cover no-repeat fixed;
+  min-height: 100vh;
+}
+
+/* ==========================================
+   DESIGN SYSTEM — Buttons
+   ========================================== */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-out);
+  font-family: inherit;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--gradient-glow);
+  color: white;
+  border: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+  box-shadow: var(--shadow-md), 0 0 20px rgba(58,123,213,0.25);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.btn-glow:hover {
+  animation: none;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+
+.btn-ghost:hover {
+  background: var(--slate-100);
+  color: var(--text);
+  border-color: var(--slate-300);
+}
+
+/* ==========================================
+   DESIGN SYSTEM — Info Chips
+   ========================================== */
+
+.info-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* ==========================================
+   DESIGN SYSTEM — Form Elements
+   ========================================== */
+
+.ds-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ds-form-group label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ds-form-group select,
+.ds-form-group input {
+  padding: 11px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.925rem;
+  font-family: inherit;
+  background: var(--white);
+  color: var(--text);
+  transition: all var(--duration-normal) var(--ease-out);
+  font-weight: 500;
+}
+
+.ds-form-group select:focus,
+.ds-form-group input:focus {
+  outline: none;
+  border-color: var(--navy-400);
+  box-shadow: 0 0 0 3px rgba(58,123,213,0.1);
+}
+
+@media (max-width: 700px) {
+  .hero-banner-content h1 {
+    font-size: 1.3rem;
+  }
 }
 
 /* ---- Overlay entrance ---- */

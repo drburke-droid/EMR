@@ -1,3 +1,4 @@
+import { useState, useCallback } from "react";
 import { useEncounterStore } from "./store/encounterStore";
 import SymptomEntry from "./components/entry/SymptomEntry";
 import AnteriorMap from "./components/anatomy/AnteriorMap";
@@ -7,82 +8,285 @@ import PlanSelector from "./components/entry/PlanSelector";
 import LiveNote from "./components/note/LiveNote";
 import { diagnoses } from "./data/diagnoses";
 import Chip from "./components/ui/Chip";
+import MacWindow, { type WindowState } from "./components/ui/MacWindow";
 
-const modules = [
-  { id: "Sx", label: "Hx / Sx" },
-  { id: "AS", label: "AS" },
-  { id: "PS", label: "PS" },
-  { id: "Dx", label: "Dx" },
-  { id: "Plan", label: "Plan" },
+/* ---- Window definitions ---- */
+type WinDef = {
+  id: string;
+  title: string;
+  defaultState: WindowState;
+  minW?: number;
+  minH?: number;
+};
+
+function getDefaults(): Record<string, WindowState> {
+  const vw = window.innerWidth;
+  const gap = 16;
+  // 3 columns: left (Hx/Sx stacked with Dx/Plan), center (AS/PS stacked), right (Note)
+  const colW = Math.min(420, Math.floor((vw - gap * 4) / 3));
+  const tallH = 480;
+  const shortH = 320;
+
+  return {
+    sx:   { x: gap,              y: gap,                w: colW, h: tallH,  collapsed: false, zIndex: 1 },
+    dx:   { x: gap,              y: gap + tallH + gap,  w: colW, h: shortH, collapsed: false, zIndex: 2 },
+    as:   { x: gap * 2 + colW,   y: gap,                w: colW, h: tallH,  collapsed: false, zIndex: 3 },
+    ps:   { x: gap * 2 + colW,   y: gap + tallH + gap,  w: colW, h: tallH,  collapsed: false, zIndex: 4 },
+    plan: { x: gap * 3 + colW * 2, y: gap + tallH + gap, w: colW, h: shortH, collapsed: false, zIndex: 5 },
+    note: { x: gap * 3 + colW * 2, y: gap,               w: colW, h: tallH,  collapsed: false, zIndex: 6 },
+  };
+}
+
+const WIN_DEFS: WinDef[] = [
+  { id: "sx",   title: "Hx / Sx",           minW: 300, minH: 180 },
+  { id: "as",   title: "Anterior Segment",   minW: 340, minH: 280 },
+  { id: "ps",   title: "Posterior Segment",   minW: 340, minH: 280 },
+  { id: "dx",   title: "Diagnoses",          minW: 280, minH: 160 },
+  { id: "plan", title: "Plan",               minW: 280, minH: 160 },
+  { id: "note", title: "Live Note",          minW: 280, minH: 200 },
 ];
 
-function ModuleContent({ module }: { module: string }) {
-  switch (module) {
-    case "Sx":
-      return <SymptomEntry />;
-    case "AS":
-      return <AnteriorMap />;
-    case "PS":
-      return <PosteriorMap />;
-    case "Dx":
-      return <DiagnosisSearch />;
-    case "Plan":
-      return <PlanSelector />;
-    default:
-      return null;
+function WindowContent({ id }: { id: string }) {
+  switch (id) {
+    case "sx":   return <SymptomEntry />;
+    case "as":   return <AnteriorMap />;
+    case "ps":   return <PosteriorMap />;
+    case "dx":   return <DiagnosisSearch />;
+    case "plan": return <PlanSelector />;
+    case "note": return <LiveNote />;
+    default:     return null;
   }
 }
 
 export default function App() {
-  const { activeModule, setActiveModule, selectedDiagnoses, removeDiagnosis } = useEncounterStore();
+  const { selectedDiagnoses, removeDiagnosis, setActiveModule } = useEncounterStore();
+
+  const [windows, setWindows] = useState<Record<string, WindowState>>(getDefaults);
+  const [topZ, setTopZ] = useState(WIN_DEFS.length + 1);
+
+  const updateWindow = useCallback(
+    (id: string, patch: Partial<WindowState>) => {
+      setWindows((prev) => ({
+        ...prev,
+        [id]: { ...prev[id], ...patch },
+      }));
+    },
+    [],
+  );
+
+  const focusWindow = useCallback(
+    (id: string) => {
+      setTopZ((z) => {
+        const next = z + 1;
+        setWindows((prev) => ({
+          ...prev,
+          [id]: { ...prev[id], zIndex: next },
+        }));
+        return next;
+      });
+    },
+    [],
+  );
+
+  /* ---- Reset layout ---- */
+  const resetLayout = useCallback(() => {
+    setWindows(getDefaults());
+    setTopZ(WIN_DEFS.length + 1);
+  }, []);
+
+  /* ---- Tile windows evenly ---- */
+  const tileWindows = useCallback(() => {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const barH = 44; // frosted bar height
+    const gap = 10;
+    const cols = vw > 1200 ? 3 : vw > 800 ? 2 : 1;
+    const rows = Math.ceil(WIN_DEFS.length / cols);
+    const cellW = Math.floor((vw - gap * (cols + 1)) / cols);
+    const cellH = Math.floor((vh - barH - gap * (rows + 1)) / rows);
+
+    const next: Record<string, WindowState> = {};
+    WIN_DEFS.forEach((def, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      next[def.id] = {
+        x: gap + col * (cellW + gap),
+        y: barH + gap + row * (cellH + gap),
+        w: cellW,
+        h: cellH,
+        collapsed: false,
+        zIndex: i + 1,
+      };
+    });
+    setWindows(next);
+    setTopZ(WIN_DEFS.length + 1);
+  }, []);
+
+  /* ---- Cascade windows ---- */
+  const cascadeWindows = useCallback(() => {
+    const next: Record<string, WindowState> = {};
+    const barH = 44;
+    WIN_DEFS.forEach((def, i) => {
+      next[def.id] = {
+        x: 30 + i * 32,
+        y: barH + 20 + i * 32,
+        w: 420,
+        h: 440,
+        collapsed: false,
+        zIndex: i + 1,
+      };
+    });
+    setWindows(next);
+    setTopZ(WIN_DEFS.length + 1);
+  }, []);
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-4 py-2 shrink-0">
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold text-gray-800">Optometry Chart</h1>
-        </div>
-        {/* Module tabs */}
-        <div className="flex gap-1 mt-2 overflow-x-auto">
-          {modules.map((m) => (
+    <div className="h-full flex flex-col wallpaper-section" style={{ overflow: "hidden" }}>
+      {/* Frosted toolbar */}
+      <div className="frosted-bar shrink-0" style={{ justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontWeight: 700, fontSize: "0.95rem", letterSpacing: "-0.02em" }}>
+            Optometry Chart
+          </span>
+          <span style={{ width: 1, height: 18, background: "rgba(255,255,255,0.15)" }} />
+          {/* Quick-focus buttons for each window */}
+          {WIN_DEFS.map((def) => (
             <button
-              key={m.id}
+              key={def.id}
               type="button"
-              onClick={() => setActiveModule(m.id)}
-              className={`px-4 py-2 rounded-t-lg text-sm font-semibold min-h-[44px] whitespace-nowrap transition-colors ${
-                activeModule === m.id
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
+              onClick={() => {
+                // Un-collapse and bring to front
+                updateWindow(def.id, { collapsed: false });
+                focusWindow(def.id);
+              }}
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.12)",
+                borderRadius: "var(--radius-sm)",
+                color: "rgba(255,255,255,0.75)",
+                padding: "5px 12px",
+                fontSize: "0.78rem",
+                fontWeight: 500,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                minHeight: 32,
+                transition: "all 150ms ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.16)";
+                e.currentTarget.style.color = "white";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+                e.currentTarget.style.color = "rgba(255,255,255,0.75)";
+              }}
             >
-              {m.label}
+              {def.title}
             </button>
           ))}
         </div>
-      </header>
-
-      {/* Main layout */}
-      <div className="flex-1 flex min-h-0">
-        {/* Left panel — entry area */}
-        <div className="flex-[3] overflow-y-auto p-4 md:p-6">
-          <ModuleContent module={activeModule} />
-        </div>
-
-        {/* Right panel — live note (hidden on small screens via md breakpoint) */}
-        <div className="hidden md:flex flex-[2] border-l border-gray-200 bg-white p-4 overflow-y-auto">
-          <div className="w-full">
-            <LiveNote />
-          </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <button
+            type="button"
+            onClick={tileWindows}
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 6,
+              color: "rgba(255,255,255,0.6)",
+              padding: "4px 10px",
+              fontSize: "0.72rem",
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Tile
+          </button>
+          <button
+            type="button"
+            onClick={cascadeWindows}
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 6,
+              color: "rgba(255,255,255,0.6)",
+              padding: "4px 10px",
+              fontSize: "0.72rem",
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Cascade
+          </button>
+          <button
+            type="button"
+            onClick={resetLayout}
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 6,
+              color: "rgba(255,255,255,0.6)",
+              padding: "4px 10px",
+              fontSize: "0.72rem",
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Reset
+          </button>
         </div>
       </div>
 
-      {/* Bottom Dx bar */}
-      <div className="shrink-0 bg-white border-t border-gray-200 px-4 py-2">
+      {/* Window canvas */}
+      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+        {WIN_DEFS.map((def) => (
+          <MacWindow
+            key={def.id}
+            id={def.id}
+            title={def.title}
+            state={windows[def.id]}
+            onUpdate={updateWindow}
+            onFocus={focusWindow}
+            minW={def.minW}
+            minH={def.minH}
+          >
+            <WindowContent id={def.id} />
+          </MacWindow>
+        ))}
+      </div>
+
+      {/* Bottom Dx bar — frosted */}
+      <div
+        className="shrink-0"
+        style={{
+          background: "rgba(15,23,42,0.85)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          borderTop: "1px solid rgba(255,255,255,0.1)",
+          padding: "6px 16px",
+        }}
+      >
         <div className="flex items-center gap-2 overflow-x-auto">
-          <span className="text-xs text-gray-400 font-semibold shrink-0">Dx:</span>
+          <span
+            style={{
+              fontSize: "0.75rem",
+              color: "rgba(255,255,255,0.5)",
+              fontWeight: 600,
+              flexShrink: 0,
+            }}
+          >
+            Dx:
+          </span>
           {selectedDiagnoses.length === 0 && (
-            <span className="text-xs text-gray-300 italic">No diagnoses selected</span>
+            <span
+              style={{
+                fontSize: "0.75rem",
+                color: "rgba(255,255,255,0.3)",
+                fontStyle: "italic",
+              }}
+            >
+              No diagnoses selected
+            </span>
           )}
           {selectedDiagnoses.map((id) => {
             const dx = diagnoses.find((d) => d.id === id);
@@ -98,17 +302,27 @@ export default function App() {
           })}
           <button
             type="button"
-            onClick={() => setActiveModule("Dx")}
-            className="text-blue-600 text-sm font-medium min-h-[44px] px-2 shrink-0"
+            onClick={() => {
+              setActiveModule("Dx");
+              updateWindow("dx", { collapsed: false });
+              focusWindow("dx");
+            }}
+            style={{
+              background: "none",
+              border: "none",
+              color: "var(--cyan-400)",
+              fontSize: "0.85rem",
+              fontWeight: 600,
+              minHeight: 36,
+              padding: "0 8px",
+              cursor: "pointer",
+              flexShrink: 0,
+              fontFamily: "inherit",
+            }}
           >
             + Add Dx
           </button>
         </div>
-      </div>
-
-      {/* Mobile note toggle (shown below md) */}
-      <div className="md:hidden shrink-0 bg-white border-t border-gray-200 p-4">
-        <LiveNote />
       </div>
     </div>
   );
