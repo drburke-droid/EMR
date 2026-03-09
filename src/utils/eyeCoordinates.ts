@@ -128,6 +128,18 @@ function lidZone(x: number, y: number): "upper_lid" | "lower_lid" | null {
 
 /* ── mapClickToLocation ────────────────────────────────────── */
 
+/* ── Canthus landmarks (SVG coords) ────────────────────────── */
+// Medial canthus (nasal) and lateral canthus (temporal) sit at
+// the ends of the palpebral fissure.  In the SVG the aperture
+// runs from x=40 to x=460 at y=200.
+const MEDIAL_CANTHUS  = { x: 40,  y: CY };   // nasal end
+const LATERAL_CANTHUS = { x: 460, y: CY };   // temporal end
+
+/** Euclidean distance in px between two points. */
+function pxDist(ax: number, ay: number, bx: number, by: number): number {
+  return Math.sqrt((ax - bx) ** 2 + (ay - by) ** 2);
+}
+
 export function mapClickToLocation(x: number, y: number, eye: "OD" | "OS"): EyeLocation {
   // Check lid first
   const lid = lidZone(x, y);
@@ -161,7 +173,9 @@ export function mapClickToLocation(x: number, y: number, eye: "OD" | "OS"): EyeL
   const direction = getDirection(angle, eye);
   const zone = getZoneByDist(dist);
   const regionId = mapToDefaultRegion(zone, direction);
-  const description = buildDescription(zone, direction, distFromLimbusMm);
+
+  // Landmark-based description
+  const description = buildDescription(x, y, dist, zone, direction, eye);
 
   return {
     zone, direction, distFromLimbusMm,
@@ -213,17 +227,68 @@ function mapToDefaultRegion(zone: AnatomicalZone, direction: string): string {
   return "cornea_central";
 }
 
-function buildDescription(zone: AnatomicalZone, direction: string, distFromLimbus: number): string {
+/**
+ * Build a human-readable description referencing the CLOSEST
+ * anatomical landmark:
+ *
+ *   central / paracentral cornea → distance from visual axis
+ *   peripheral cornea / limbus   → distance from limbus
+ *   anterior bulbar conj         → distance from limbus
+ *   posterior / lateral conj     → distance from nearest canthus
+ *   lid                          → just "upper lid" / "lower lid"
+ */
+function buildDescription(
+  x: number, y: number, distFromCenter: number,
+  zone: AnatomicalZone, direction: string, eye: "OD" | "OS",
+): string {
   const dir = direction === "central" ? "" : direction + " ";
+
   if (zone === "upper_lid") return "upper lid";
   if (zone === "lower_lid") return "lower lid";
-  if (zone === "pupil") return `${dir}central (over pupil)`;
-  if (zone === "limbus") return `${dir}limbus`;
-  if (zone === "bulbar_conjunctiva") return `${dir}bulbar conjunctiva`;
 
-  const zonePretty = zone.replace(/_/g, " ");
-  if (distFromLimbus > 0) return `${dir}${zonePretty}, ${distFromLimbus.toFixed(1)}mm from limbus`;
-  return `${dir}${zonePretty}, at limbus`;
+  // ── Central / paracentral cornea → ref visual axis ──────
+  if (zone === "pupil" || zone === "central_cornea") {
+    const mm = (distFromCenter / PX_PER_MM);
+    if (mm < 0.3) return "visual axis";
+    return `${dir}central cornea, ${mm.toFixed(1)}mm from visual axis`;
+  }
+
+  if (zone === "paracentral_cornea") {
+    const mm = (distFromCenter / PX_PER_MM);
+    return `${dir}paracentral cornea, ${mm.toFixed(1)}mm from visual axis`;
+  }
+
+  // ── Peripheral cornea / limbus → ref limbus ─────────────
+  if (zone === "peripheral_cornea" || zone === "limbus") {
+    const fromLimbusMm = Math.abs(LIMBUS_R - distFromCenter) / PX_PER_MM;
+    if (zone === "limbus") return `${dir}limbus`;
+    return `${dir}peripheral cornea, ${fromLimbusMm.toFixed(1)}mm from limbus`;
+  }
+
+  // ── Bulbar conjunctiva → nearest landmark ───────────────
+  // Anterior conj (close to limbus) → reference limbus
+  // Posterior / lateral conj (far from limbus) → reference nearest canthus
+  if (zone === "bulbar_conjunctiva") {
+    const fromLimbusMm = (distFromCenter - LIMBUS_R) / PX_PER_MM;
+
+    // Determine which canthus is nasal vs temporal for this eye
+    const nasalCanthus  = eye === "OD" ? MEDIAL_CANTHUS : LATERAL_CANTHUS;
+    const temporalCanthus = eye === "OD" ? LATERAL_CANTHUS : MEDIAL_CANTHUS;
+
+    const toNasal = pxDist(x, y, nasalCanthus.x, nasalCanthus.y) / PX_PER_MM;
+    const toTemporal = pxDist(x, y, temporalCanthus.x, temporalCanthus.y) / PX_PER_MM;
+    const nearestCanthusMm = Math.min(toNasal, toTemporal);
+    const canthusSide = toNasal <= toTemporal ? "nasal canthus" : "temporal canthus";
+
+    // If closer to limbus than to either canthus → reference limbus
+    if (fromLimbusMm < nearestCanthusMm) {
+      return `${dir}bulbar conj, ${fromLimbusMm.toFixed(1)}mm from limbus`;
+    }
+    // Otherwise reference nearest canthus
+    return `${dir}bulbar conj, ${nearestCanthusMm.toFixed(1)}mm from ${canthusSide}`;
+  }
+
+  return `${dir}${zone.replace(/_/g, " ")}`;
 }
 
 /* ── Resolve depth → finding-tree region ───────────────────── */
