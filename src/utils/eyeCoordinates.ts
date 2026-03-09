@@ -21,16 +21,15 @@ export type AnatomicalZone =
   | "peripheral_cornea"
   | "limbus"
   | "bulbar_conjunctiva"
-  | "iris"
   | "lid";
 
 export type EyeLocation = {
   zone: AnatomicalZone;
-  direction: string;          // e.g. "superior-nasal"
-  distFromLimbusMm: number;   // positive = inside cornea
+  direction: string;
+  distFromLimbusMm: number;
   distFromCenterMm: number;
   clockHour: number;
-  regionId: string;           // maps to anterior_findings region IDs
+  regionId: string;
   description: string;
 };
 
@@ -42,26 +41,31 @@ export type BrushBounds = {
   description: string;
 };
 
-export type CorneaLayer =
-  | "epithelium"
-  | "bowmans"
-  | "anterior_stroma"
-  | "mid_stroma"
-  | "posterior_stroma"
-  | "descemets"
-  | "endothelium";
+/* ── Depth layers — full anterior segment cross-section ─────── */
 
-export const CORNEA_LAYERS: { id: CorneaLayer; label: string; color: string; thickness: number }[] = [
-  { id: "epithelium",       label: "Epithelium",         color: "#c4a8d4", thickness: 22 },
-  { id: "bowmans",          label: "Bowman's",           color: "#d4c878", thickness: 14 },
-  { id: "anterior_stroma",  label: "Stroma (ant)",       color: "#88b8d8", thickness: 28 },
-  { id: "mid_stroma",       label: "Stroma (mid)",       color: "#78a8c8", thickness: 28 },
-  { id: "posterior_stroma", label: "Stroma (post)",      color: "#6898b8", thickness: 28 },
-  { id: "descemets",        label: "Descemet's",         color: "#d8a858", thickness: 14 },
-  { id: "endothelium",      label: "Endothelium",        color: "#68b888", thickness: 22 },
+export type DepthLayer = {
+  id: string;
+  label: string;
+  group: "tear" | "cornea" | "ac" | "iris" | "lens";
+  color: string;
+  flex: number;          // relative visual height
+  regionOverride?: string; // if set, use this region for findings instead of XY-derived
+};
+
+export const DEPTH_LAYERS: DepthLayer[] = [
+  { id: "tear_film",        label: "Tear Film",      group: "tear",   color: "#7cc4e8", flex: 6,  regionOverride: "tear_film" },
+  { id: "epithelium",       label: "Epithelium",     group: "cornea", color: "#c4a8d4", flex: 12 },
+  { id: "bowmans",          label: "Bowman's",       group: "cornea", color: "#d4c878", flex: 6 },
+  { id: "stroma",           label: "Stroma",         group: "cornea", color: "#88b8d8", flex: 22 },
+  { id: "descemets",        label: "Descemet's",     group: "cornea", color: "#d8a858", flex: 6 },
+  { id: "endothelium",      label: "Endothelium",    group: "cornea", color: "#68b888", flex: 10 },
+  { id: "anterior_chamber", label: "Ant. Chamber",   group: "ac",     color: "#a8d8f0", flex: 18, regionOverride: "anterior_chamber" },
+  { id: "iris",             label: "Iris",           group: "iris",   color: "#c8a870", flex: 12, regionOverride: "iris" },
+  { id: "anterior_lens",    label: "Ant. Lens",      group: "lens",   color: "#d8d0c0", flex: 12, regionOverride: "lens" },
+  { id: "posterior_lens",   label: "Post. Lens",     group: "lens",   color: "#c8c0b0", flex: 12, regionOverride: "lens" },
 ];
 
-/* ── Click → Location mapping ──────────────────────────────────── */
+/* ── Click → Location mapping ──────────────────────────────── */
 
 export function mapClickToLocation(x: number, y: number, eye: "OD" | "OS"): EyeLocation {
   const dx = x - CX;
@@ -70,11 +74,9 @@ export function mapClickToLocation(x: number, y: number, eye: "OD" | "OS"): EyeL
   const distMm = dist / PX_PER_MM;
   const distFromLimbusMm = Math.round(((LIMBUS_R - dist) / PX_PER_MM) * 10) / 10;
 
-  // Angle: 0 = right, counter-clockwise. SVG y is inverted so negate dy.
   let angle = Math.atan2(-dy, dx);
   if (angle < 0) angle += 2 * Math.PI;
 
-  // Clock hour: 12 = top (π/2), 3 = right (0), 6 = bottom (3π/2), 9 = left (π)
   let clockAngle = Math.PI / 2 - angle;
   if (clockAngle < 0) clockAngle += 2 * Math.PI;
   const clockHour = Math.round((clockAngle / (Math.PI / 6)) % 12) || 12;
@@ -123,7 +125,6 @@ function getDirection(angle: number, eye: "OD" | "OS"): string {
 
 function mapToRegionId(zone: AnatomicalZone, direction: string): string {
   if (zone === "pupil") return "pupil";
-  if (zone === "iris") return "iris";
 
   if (zone === "bulbar_conjunctiva" || zone === "limbus") {
     if (direction.includes("nasal")) return "bulbar_conj_nasal";
@@ -132,7 +133,6 @@ function mapToRegionId(zone: AnatomicalZone, direction: string): string {
     return "bulbar_conj_inferior";
   }
 
-  // Corneal zones
   if (zone === "central_cornea") return "cornea_central";
   if (direction.includes("superior")) return "cornea_superior";
   if (direction.includes("inferior")) return "cornea_inferior";
@@ -142,7 +142,7 @@ function mapToRegionId(zone: AnatomicalZone, direction: string): string {
 }
 
 function buildDescription(zone: AnatomicalZone, direction: string, distFromLimbus: number): string {
-  const dir = direction === "central" ? "" : direction.replace("-", "-") + " ";
+  const dir = direction === "central" ? "" : direction + " ";
 
   if (zone === "pupil") return "pupil";
   if (zone === "limbus") return `${dir}limbus`;
@@ -155,10 +155,11 @@ function buildDescription(zone: AnatomicalZone, direction: string, distFromLimbu
   return `${dir}${zonePretty}, at limbus`;
 }
 
-/* ── Brush bounds ──────────────────────────────────────────────── */
+/* ── Brush bounds ──────────────────────────────────────────── */
 
-export function computeBrushBounds(points: { x: number; y: number }[]): BrushBounds {
-  if (points.length === 0) return { widthMm: 0, heightMm: 0, centerX: CX, centerY: CY, description: "" };
+export function computeBrushBounds(points: { x: number; y: number }[], strokeW: number): BrushBounds {
+  if (points.length === 0)
+    return { widthMm: 0, heightMm: 0, centerX: CX, centerY: CY, description: "" };
 
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const p of points) {
@@ -167,6 +168,11 @@ export function computeBrushBounds(points: { x: number; y: number }[]): BrushBou
     if (p.y < minY) minY = p.y;
     if (p.y > maxY) maxY = p.y;
   }
+
+  // Include stroke width in bounds
+  const half = strokeW / 2;
+  minX -= half; minY -= half;
+  maxX += half; maxY += half;
 
   const wMm = Math.round(((maxX - minX) / PX_PER_MM) * 10) / 10;
   const hMm = Math.round(((maxY - minY) / PX_PER_MM) * 10) / 10;
@@ -178,4 +184,17 @@ export function computeBrushBounds(points: { x: number; y: number }[]): BrushBou
     centerY: (minY + maxY) / 2,
     description: `~${wMm.toFixed(1)}mm × ${hMm.toFixed(1)}mm`,
   };
+}
+
+/**
+ * Given a depth layer selection and the XY-derived region,
+ * return the finding-tree regionId to use.
+ */
+export function resolveRegionForDepth(
+  depthId: string,
+  xyRegionId: string,
+): string {
+  const layer = DEPTH_LAYERS.find((l) => l.id === depthId);
+  if (!layer) return xyRegionId;
+  return layer.regionOverride ?? xyRegionId;
 }

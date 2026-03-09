@@ -5,39 +5,55 @@ import { rankFindingsForRegion } from "../../utils/clinicalInference";
 import RingSelector from "../menus/RingSelector";
 import {
   CX, CY, PUPIL_R, IRIS_R, LIMBUS_R, SCLERA_R, PX_PER_MM,
-  CORNEA_LAYERS,
+  DEPTH_LAYERS,
   mapClickToLocation,
   computeBrushBounds,
+  resolveRegionForDepth,
   type EyeLocation,
-  type CorneaLayer,
 } from "../../utils/eyeCoordinates";
 
 /* ================================================================
-   BRUSH SIZES — diameter in mm  (0 = point click)
+   WORKFLOW
+   ─────────────────────────────────────────────────────────────────
+   1. Tap eye photo → place XY marker  (or draw with brush → XY from center)
+   2. Tap depth layer on cross-section → set Z
+   3. Optionally draw extent with brush (if not already drawn)
+   4. Context-specific finding buttons appear
+   5. Tap finding → RingSelector radial qualifier menu
    ================================================================ */
+
+type Step = "xy" | "z" | "extent" | "findings";
+
 const BRUSH_SIZES = [
-  { label: "Pt",   mm: 0,   px: 3 },
-  { label: "0.5",  mm: 0.5, px: 0.5 * PX_PER_MM },
-  { label: "1",    mm: 1,   px: 1   * PX_PER_MM },
-  { label: "2",    mm: 2,   px: 2   * PX_PER_MM },
-  { label: "3",    mm: 3,   px: 3   * PX_PER_MM },
+  { label: "Pt",  mm: 0,   strokeW: 3 },
+  { label: "0.5", mm: 0.5, strokeW: 0.5 * PX_PER_MM },
+  { label: "1",   mm: 1,   strokeW: 1 * PX_PER_MM },
+  { label: "2",   mm: 2,   strokeW: 2 * PX_PER_MM },
+  { label: "3",   mm: 3,   strokeW: 3 * PX_PER_MM },
 ];
 
-/* ================================================================
-   MAIN COMPONENT
-   ================================================================ */
+/* ================================================================ */
+
 export default function AnteriorPhoto() {
   const [selectedEye, setSelectedEye] = useState<Eye>("OD");
+  const [step, setStep] = useState<Step>("xy");
   const [brushIdx, setBrushIdx] = useState(0);
+
+  // XY state
+  const [marker, setMarker] = useState<{ x: number; y: number } | null>(null);
+  const [xyLocation, setXyLocation] = useState<EyeLocation | null>(null);
+
+  // Z state
+  const [depthId, setDepthId] = useState<string | null>(null);
+
+  // Brush/extent state
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawPoints, setDrawPoints] = useState<{ x: number; y: number }[]>([]);
-  const [markers, setMarkers] = useState<{ x: number; y: number; loc: EyeLocation }[]>([]);
-  const [clickLocation, setClickLocation] = useState<EyeLocation | null>(null);
-  const [selectedLayer, setSelectedLayer] = useState<CorneaLayer | null>(null);
-  const [brushBoundsDesc, setBrushBoundsDesc] = useState("");
+  const [extentDesc, setExtentDesc] = useState("");
 
   const svgRef = useRef<SVGSVGElement>(null);
 
+  // Store
   const findings = useEncounterStore((s) => s.findings);
   const addFinding = useEncounterStore((s) => s.addFinding);
   const removeFinding = useEncounterStore((s) => s.removeFinding);
@@ -47,8 +63,29 @@ export default function AnteriorPhoto() {
   const brush = BRUSH_SIZES[brushIdx];
   const isPointMode = brush.mm === 0;
 
-  /* ---- SVG coordinate helpers ---- */
-  const toSvg = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
+  /* ── Derived: which finding region to use ───────────────────── */
+  const effectiveRegionId = useMemo(() => {
+    if (!xyLocation) return null;
+    if (!depthId) return xyLocation.regionId;
+    return resolveRegionForDepth(depthId, xyLocation.regionId);
+  }, [xyLocation, depthId]);
+
+  const regionData = effectiveRegionId
+    ? anteriorFindings.find((r) => r.regionId === effectiveRegionId)
+    : null;
+
+  const rankedFindings = useMemo(() => {
+    if (!regionData || !effectiveRegionId) return null;
+    const origLabels = regionData.findings.map((n) => n.label);
+    const symLabels = symptoms.map((s) => s.symptom);
+    const ranked = rankFindingsForRegion(effectiveRegionId, origLabels, symLabels, findings);
+    const map = new Map<string, FindingNode>();
+    for (const n of regionData.findings) map.set(n.label, n);
+    return ranked.map((l) => map.get(l)).filter(Boolean) as FindingNode[];
+  }, [regionData, effectiveRegionId, symptoms, findings]);
+
+  /* ── SVG helpers ────────────────────────────────────────────── */
+  const toSvg = useCallback((e: React.PointerEvent) => {
     const svg = svgRef.current;
     if (!svg) return { x: 0, y: 0 };
     const pt = svg.createSVGPoint();
@@ -56,94 +93,117 @@ export default function AnteriorPhoto() {
     pt.y = e.clientY;
     const ctm = svg.getScreenCTM();
     if (!ctm) return { x: 0, y: 0 };
-    const svgPt = pt.matrixTransform(ctm.inverse());
-    return { x: svgPt.x, y: svgPt.y };
+    const s = pt.matrixTransform(ctm.inverse());
+    return { x: s.x, y: s.y };
   }, []);
 
-  /* ---- Pointer handlers ---- */
-  const onPointerDown = useCallback(
+  /* ── Photo pointer handlers ─────────────────────────────────── */
+  const onPhotoDown = useCallback(
     (e: React.PointerEvent<SVGSVGElement>) => {
+      // Only accept primary button
+      if (e.button !== 0) return;
       const p = toSvg(e);
       const loc = mapClickToLocation(p.x, p.y, selectedEye);
 
-      if (isPointMode) {
-        // Point click — place marker
-        setMarkers((prev) => [...prev, { x: p.x, y: p.y, loc }]);
-        setClickLocation(loc);
-        setDrawPoints([]);
-        setBrushBoundsDesc("");
-      } else {
-        // Brush mode — start drawing
+      if (step === "xy") {
+        if (isPointMode) {
+          // Point tap → set XY, advance to Z
+          setMarker(p);
+          setXyLocation(loc);
+          setDrawPoints([]);
+          setExtentDesc("");
+          setStep("z");
+        } else {
+          // Brush draw → start drawing (will set XY from center when done)
+          setIsDrawing(true);
+          setDrawPoints([p]);
+          setMarker(null);
+          (e.currentTarget as Element).setPointerCapture(e.pointerId);
+        }
+      } else if (step === "extent" && !isPointMode) {
+        // Drawing extent after Z is set
         setIsDrawing(true);
         setDrawPoints([p]);
-        setClickLocation(loc);
-        (e.target as Element).setPointerCapture(e.pointerId);
+        (e.currentTarget as Element).setPointerCapture(e.pointerId);
       }
     },
-    [toSvg, selectedEye, isPointMode],
+    [toSvg, selectedEye, step, isPointMode],
   );
 
-  const onPointerMove = useCallback(
-    (e: React.PointerEvent<SVGSVGElement>) => {
+  const onPhotoMove = useCallback(
+    (e: React.PointerEvent) => {
       if (!isDrawing) return;
-      const p = toSvg(e);
-      setDrawPoints((prev) => [...prev, p]);
+      setDrawPoints((prev) => [...prev, toSvg(e)]);
     },
     [isDrawing, toSvg],
   );
 
-  const onPointerUp = useCallback(() => {
+  const onPhotoUp = useCallback(() => {
     if (!isDrawing) return;
     setIsDrawing(false);
-    // Compute bounds
-    const bounds = computeBrushBounds(drawPoints);
-    setBrushBoundsDesc(bounds.description);
-    // Map center of drawn area to location
-    const loc = mapClickToLocation(bounds.centerX, bounds.centerY, selectedEye);
-    setClickLocation(loc);
-  }, [isDrawing, drawPoints, selectedEye]);
 
-  /* ---- Region data for findings menu ---- */
-  const regionId = clickLocation?.regionId ?? null;
-  const regionData = regionId
-    ? anteriorFindings.find((r) => r.regionId === regionId)
-    : null;
+    if (drawPoints.length < 2) return;
 
-  const rankedFindings = useMemo(() => {
-    if (!regionData || !regionId) return null;
-    const originalLabels = regionData.findings.map((n) => n.label);
-    const symptomLabels = symptoms.map((s) => s.symptom);
-    const ranked = rankFindingsForRegion(regionId, originalLabels, symptomLabels, findings);
-    const nodeMap = new Map<string, FindingNode>();
-    for (const n of regionData.findings) nodeMap.set(n.label, n);
-    return ranked.map((label) => nodeMap.get(label)).filter(Boolean) as FindingNode[];
-  }, [regionData, regionId, symptoms, findings]);
+    const bounds = computeBrushBounds(drawPoints, brush.strokeW);
+    setExtentDesc(bounds.description);
 
-  /* ---- Build freeText with location metadata ---- */
+    if (step === "xy") {
+      // Brush was used to define XY — derive location from center
+      const loc = mapClickToLocation(bounds.centerX, bounds.centerY, selectedEye);
+      setXyLocation(loc);
+      setMarker({ x: bounds.centerX, y: bounds.centerY });
+      setStep("z");
+    } else if (step === "extent") {
+      setStep("findings");
+    }
+  }, [isDrawing, drawPoints, brush.strokeW, step, selectedEye]);
+
+  /* ── Depth layer selection ──────────────────────────────────── */
+  const onSelectDepth = useCallback(
+    (id: string) => {
+      if (step !== "z") return;
+      setDepthId(id);
+      // If we already have extent from brush (drawn during XY step), go to findings
+      if (drawPoints.length > 1) {
+        setStep("findings");
+      } else {
+        setStep("extent");
+      }
+    },
+    [step, drawPoints.length],
+  );
+
+  /* ── Skip extent → go straight to findings ──────────────────── */
+  const skipExtent = useCallback(() => {
+    setStep("findings");
+  }, []);
+
+  /* ── Finding selected → add to store ────────────────────────── */
   function handleComplete(finding: string, qualifiers: string[]) {
-    if (!clickLocation) return;
+    if (!xyLocation || !effectiveRegionId) return;
     const parts: string[] = [];
-    parts.push(clickLocation.description);
-    if (selectedLayer) {
-      const layer = CORNEA_LAYERS.find((l) => l.id === selectedLayer);
+    parts.push(xyLocation.description);
+    if (depthId) {
+      const layer = DEPTH_LAYERS.find((l) => l.id === depthId);
       if (layer) parts.push(layer.label.toLowerCase());
     }
-    if (brushBoundsDesc) parts.push(brushBoundsDesc);
-    const freeText = parts.join(", ");
-    addFinding(selectedEye, clickLocation.regionId, finding, qualifiers, freeText);
-    // Clear markers/drawing after adding
-    clearSelection();
+    if (extentDesc) parts.push(extentDesc);
+    addFinding(selectedEye, effectiveRegionId, finding, qualifiers, parts.join(", "));
+    resetWorkflow();
   }
 
-  function clearSelection() {
-    setMarkers([]);
+  /* ── Reset ──────────────────────────────────────────────────── */
+  function resetWorkflow() {
+    setStep("xy");
+    setMarker(null);
+    setXyLocation(null);
+    setDepthId(null);
     setDrawPoints([]);
-    setClickLocation(null);
-    setSelectedLayer(null);
-    setBrushBoundsDesc("");
+    setExtentDesc("");
+    setIsDrawing(false);
   }
 
-  /* ---- Current findings list ---- */
+  /* ── Current findings list ──────────────────────────────────── */
   const currentFindings = Object.entries(findings)
     .filter(([k]) => k.startsWith(`${selectedEye}_`) || k.startsWith("OU_"))
     .flatMap(([key, entries]) =>
@@ -152,62 +212,98 @@ export default function AnteriorPhoto() {
         .map((e) => ({ ...e, key })),
     );
 
-  /* ---- Is the click in a corneal zone? ---- */
-  const isCorneal = clickLocation &&
-    ["central_cornea", "paracentral_cornea", "peripheral_cornea", "limbus"].includes(clickLocation.zone);
+  /* ── Step label ─────────────────────────────────────────────── */
+  const stepLabel = {
+    xy: isPointMode
+      ? "Step 1 — Tap a location on the eye"
+      : "Step 1 — Draw on the eye to mark the area",
+    z: "Step 2 — Tap the depth layer",
+    extent: "Step 3 — Draw extent (or skip)",
+    findings: "Select finding",
+  }[step];
 
+  /* ── Bounding box from draw ─────────────────────────────────── */
+  const drawBBox = useMemo(() => {
+    if (drawPoints.length < 2) return null;
+    const xs = drawPoints.map((p) => p.x);
+    const ys = drawPoints.map((p) => p.y);
+    const half = brush.strokeW / 2;
+    return {
+      x: Math.min(...xs) - half,
+      y: Math.min(...ys) - half,
+      w: Math.max(...xs) - Math.min(...xs) + brush.strokeW,
+      h: Math.max(...ys) - Math.min(...ys) + brush.strokeW,
+    };
+  }, [drawPoints, brush.strokeW]);
+
+  /* ================================================================
+     RENDER
+     ================================================================ */
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8, height: "100%", minHeight: 0 }}>
-      {/* Top bar: eye toggle + brush selector */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-        <div style={{ display: "flex", gap: 6 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, height: "100%", minHeight: 0 }}>
+
+      {/* ── Top bar: eye + step indicator + brush ──────────────── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
+        {/* Eye toggle */}
+        <div style={{ display: "flex", gap: 4 }}>
           {(["OD", "OS", "OU"] as Eye[]).map((eye) => (
             <button
-              key={eye}
-              type="button"
-              onClick={() => setSelectedEye(eye)}
+              key={eye} type="button"
+              onClick={() => { setSelectedEye(eye); resetWorkflow(); }}
               style={{
-                width: 40, height: 40, borderRadius: "50%",
-                fontSize: "0.8rem", fontWeight: 700, border: "none", cursor: "pointer",
+                width: 36, height: 36, borderRadius: "50%",
+                fontSize: "0.75rem", fontWeight: 700, border: "none", cursor: "pointer",
                 fontFamily: "inherit",
                 background: selectedEye === eye ? "var(--gradient-glow)" : "var(--slate-100)",
                 color: selectedEye === eye ? "white" : "var(--slate-600)",
-                boxShadow: selectedEye === eye ? "var(--shadow-md)" : "none",
-                transition: "all 150ms ease",
+                boxShadow: selectedEye === eye ? "var(--shadow-sm)" : "none",
               }}
-            >
-              {eye}
-            </button>
+            >{eye}</button>
           ))}
         </div>
 
-        {/* Brush size selector */}
+        {/* Step indicator */}
         <div style={{
-          display: "flex", alignItems: "center", gap: 4,
-          background: "var(--slate-100)", borderRadius: "var(--radius-sm)", padding: "4px 6px",
+          flex: 1, fontSize: "0.72rem", fontWeight: 600,
+          color: step === "findings" ? "var(--emerald-500)" : "var(--navy-400)",
+          letterSpacing: "-0.01em",
         }}>
-          <span style={{ fontSize: "0.65rem", color: "var(--text-secondary)", fontWeight: 600, marginRight: 2 }}>BRUSH</span>
+          {stepLabel}
+        </div>
+
+        {/* Reset button */}
+        {step !== "xy" && (
+          <button type="button" onClick={resetWorkflow} style={{
+            background: "none", border: "1px solid var(--border)",
+            borderRadius: "var(--radius-sm)", padding: "4px 10px",
+            fontSize: "0.7rem", fontWeight: 500, cursor: "pointer",
+            color: "var(--text-secondary)", fontFamily: "inherit",
+          }}>Reset</button>
+        )}
+
+        {/* Brush selector */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 3,
+          background: "var(--slate-100)", borderRadius: "var(--radius-sm)", padding: "3px 5px",
+        }}>
           {BRUSH_SIZES.map((b, i) => (
             <button
-              key={b.label}
-              type="button"
+              key={b.label} type="button"
               onClick={() => setBrushIdx(i)}
-              title={b.mm === 0 ? "Point click" : `${b.mm}mm brush`}
+              title={b.mm === 0 ? "Point tap" : `${b.mm}mm brush`}
               style={{
-                width: 32, height: 32, borderRadius: "50%",
+                width: 28, height: 28, borderRadius: "50%",
                 border: brushIdx === i ? "2px solid var(--navy-400)" : "1.5px solid var(--border)",
                 background: brushIdx === i ? "var(--navy-50)" : "white",
-                cursor: "pointer",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                transition: "all 150ms ease",
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
               }}
             >
               {b.mm === 0 ? (
-                <div style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--navy-500)" }} />
+                <div style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--navy-500)" }} />
               ) : (
                 <div style={{
-                  width: Math.min(22, Math.max(8, b.mm * 6)),
-                  height: Math.min(22, Math.max(8, b.mm * 6)),
+                  width: Math.min(18, Math.max(7, b.mm * 5)),
+                  height: Math.min(18, Math.max(7, b.mm * 5)),
                   borderRadius: "50%",
                   background: brushIdx === i ? "var(--navy-400)" : "var(--slate-400)",
                   opacity: 0.7,
@@ -218,77 +314,65 @@ export default function AnteriorPhoto() {
         </div>
       </div>
 
-      {/* Photo + cross-section row */}
-      <div style={{ display: "flex", gap: 8, flex: 1, minHeight: 0 }}>
-        {/* Eye photo */}
-        <div style={{ flex: 3, position: "relative", minHeight: 0, display: "flex", flexDirection: "column" }}>
+      {/* ── Photo + cross-section row ─────────────────────────── */}
+      <div style={{ display: "flex", gap: 6, flex: 1, minHeight: 0 }}>
+
+        {/* Eye photo SVG */}
+        <div style={{ flex: 3, minHeight: 0, display: "flex" }}>
           <svg
             ref={svgRef}
             viewBox="0 0 500 400"
             style={{
-              width: "100%", height: "100%", borderRadius: "var(--radius-sm)",
-              cursor: isPointMode ? "crosshair" : "cell",
+              width: "100%", height: "100%",
+              borderRadius: "var(--radius-sm)",
+              cursor: step === "xy"
+                ? (isPointMode ? "crosshair" : "cell")
+                : step === "extent" && !isPointMode
+                  ? "cell"
+                  : "default",
               touchAction: "none", userSelect: "none",
               background: "#1a1410",
+              opacity: (step !== "xy" && step !== "extent") ? 0.85 : 1,
+              transition: "opacity 200ms ease",
             }}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onPointerCancel={onPointerUp}
+            onPointerDown={(step === "xy" || step === "extent") ? onPhotoDown : undefined}
+            onPointerMove={isDrawing ? onPhotoMove : undefined}
+            onPointerUp={isDrawing ? onPhotoUp : undefined}
+            onPointerCancel={isDrawing ? onPhotoUp : undefined}
           >
             <defs>
-              {/* Sclera gradient */}
-              <radialGradient id="scleraGrad" cx="50%" cy="50%">
+              <radialGradient id="scleraG" cx="50%" cy="50%">
                 <stop offset="0%" stopColor="#f2ece8" />
                 <stop offset="70%" stopColor="#ebe2da" />
                 <stop offset="100%" stopColor="#ddd2c8" />
               </radialGradient>
-              {/* Iris gradient — hazel/brown */}
-              <radialGradient id="irisGrad" cx="50%" cy="48%">
+              <radialGradient id="irisG" cx="50%" cy="48%">
                 <stop offset="0%" stopColor="#6b4f1a" />
                 <stop offset="30%" stopColor="#8b6c20" />
                 <stop offset="50%" stopColor="#7a5c18" />
                 <stop offset="75%" stopColor="#5a4010" />
                 <stop offset="100%" stopColor="#3a2808" />
               </radialGradient>
-              {/* Corneal sheen highlight */}
-              <radialGradient id="corneaSheen" cx="42%" cy="38%">
+              <radialGradient id="sheenG" cx="42%" cy="38%">
                 <stop offset="0%" stopColor="rgba(255,255,255,0.25)" />
                 <stop offset="50%" stopColor="rgba(255,255,255,0.05)" />
                 <stop offset="100%" stopColor="rgba(255,255,255,0)" />
               </radialGradient>
-              {/* Limbus shadow ring */}
-              <radialGradient id="limbusShadow" cx="50%" cy="50%">
-                <stop offset="88%" stopColor="rgba(0,0,0,0)" />
-                <stop offset="94%" stopColor="rgba(0,0,0,0.15)" />
-                <stop offset="100%" stopColor="rgba(0,0,0,0)" />
-              </radialGradient>
-              {/* Eyelid aperture clip */}
-              <clipPath id="eyeClip">
+              <clipPath id="aperture">
                 <path d="M 40,200 Q 250,55 460,200 Q 250,345 40,200 Z" />
               </clipPath>
-              {/* Iris fiber pattern */}
-              <filter id="irisNoise">
-                <feTurbulence type="fractalNoise" baseFrequency="0.08 0.3" numOctaves="4" seed="3" />
-                <feColorMatrix type="saturate" values="0.1" />
-                <feBlend in="SourceGraphic" mode="overlay" />
-              </filter>
             </defs>
 
-            {/* Background (periorbital skin) */}
-            <rect width="500" height="400" fill="#c8a888" rx="0" />
-            {/* Upper eyelid skin */}
+            {/* Periorbital skin */}
+            <rect width="500" height="400" fill="#c8a888" />
             <path d="M 0,0 L 500,0 L 500,200 Q 250,40 0,200 Z" fill="#cbb098" />
-            {/* Lower eyelid skin */}
             <path d="M 0,200 Q 250,360 500,200 L 500,400 L 0,400 Z" fill="#c4a890" />
 
-            {/* Visible eye — clipped by aperture */}
-            <g clipPath="url(#eyeClip)">
+            <g clipPath="url(#aperture)">
               {/* Sclera */}
-              <ellipse cx={CX} cy={CY} rx={SCLERA_R + 30} ry={SCLERA_R} fill="url(#scleraGrad)" />
-
-              {/* Scleral blood vessels */}
-              <g opacity="0.25" fill="none" strokeLinecap="round">
+              <ellipse cx={CX} cy={CY} rx={SCLERA_R + 30} ry={SCLERA_R} fill="url(#scleraG)" />
+              {/* Vessels */}
+              <g opacity="0.22" fill="none" strokeLinecap="round">
                 <path d="M 85,175 Q 110,178 130,185 Q 145,190 155,195" stroke="#c44" strokeWidth="0.8" />
                 <path d="M 80,195 Q 105,192 125,196" stroke="#b44" strokeWidth="0.6" />
                 <path d="M 90,210 Q 115,208 135,205 Q 148,202 155,200" stroke="#c44" strokeWidth="0.7" />
@@ -298,69 +382,54 @@ export default function AnteriorPhoto() {
                 <path d="M 250,90 Q 240,105 238,120" stroke="#b33" strokeWidth="0.5" />
                 <path d="M 265,92 Q 268,108 270,118" stroke="#b33" strokeWidth="0.4" />
                 <path d="M 245,305 Q 242,290 240,280" stroke="#b33" strokeWidth="0.5" />
-                <path d="M 260,308 Q 262,292 263,282" stroke="#b33" strokeWidth="0.4" />
               </g>
-
-              {/* Limbus — subtle dark ring */}
+              {/* Limbus ring */}
               <circle cx={CX} cy={CY} r={LIMBUS_R} fill="none" stroke="rgba(60,40,20,0.25)" strokeWidth="3" />
-
               {/* Iris */}
-              <circle cx={CX} cy={CY} r={IRIS_R} fill="url(#irisGrad)" />
-
-              {/* Iris radial fibers */}
+              <circle cx={CX} cy={CY} r={IRIS_R} fill="url(#irisG)" />
+              {/* Iris fibers */}
               <g opacity="0.3" stroke="#a08040" strokeWidth="0.6" fill="none">
                 {Array.from({ length: 72 }, (_, i) => {
                   const a = (i * 5 * Math.PI) / 180;
                   const r1 = PUPIL_R + 3;
                   const r2 = IRIS_R - 2;
-                  const wobble = (i % 3 === 0 ? 4 : i % 3 === 1 ? -3 : 2);
-                  const mx = CX + (r1 + r2) / 2 * Math.cos(a) + wobble * Math.sin(a);
-                  const my = CY + (r1 + r2) / 2 * Math.sin(a) + wobble * Math.cos(a);
+                  const w = i % 3 === 0 ? 4 : i % 3 === 1 ? -3 : 2;
+                  const mx = CX + ((r1 + r2) / 2) * Math.cos(a) + w * Math.sin(a);
+                  const my = CY + ((r1 + r2) / 2) * Math.sin(a) + w * Math.cos(a);
                   return (
-                    <path
-                      key={i}
+                    <path key={i}
                       d={`M ${CX + r1 * Math.cos(a)} ${CY + r1 * Math.sin(a)} Q ${mx} ${my} ${CX + r2 * Math.cos(a)} ${CY + r2 * Math.sin(a)}`}
                     />
                   );
                 })}
               </g>
-
-              {/* Collarette ring */}
+              {/* Collarette */}
               <circle cx={CX} cy={CY} r={(PUPIL_R + IRIS_R) * 0.42} fill="none" stroke="rgba(180,150,80,0.3)" strokeWidth="2.5" />
-
               {/* Pupillary margin */}
               <circle cx={CX} cy={CY} r={PUPIL_R + 1.5} fill="none" stroke="rgba(50,30,10,0.5)" strokeWidth="2" />
-
               {/* Pupil */}
               <circle cx={CX} cy={CY} r={PUPIL_R} fill="#0a0a0a" />
-
-              {/* Corneal light reflex */}
+              {/* Light reflex */}
               <ellipse cx={CX - 18} cy={CY - 20} rx="8" ry="6" fill="white" opacity="0.85" />
               <ellipse cx={CX - 16} cy={CY - 18} rx="4" ry="3" fill="white" opacity="0.95" />
-
               {/* Corneal sheen */}
-              <circle cx={CX} cy={CY} r={LIMBUS_R} fill="url(#corneaSheen)" />
-
-              {/* Limbus depth shadow */}
-              <circle cx={CX} cy={CY} r={LIMBUS_R + 8} fill="url(#limbusShadow)" />
+              <circle cx={CX} cy={CY} r={LIMBUS_R} fill="url(#sheenG)" />
             </g>
 
-            {/* Eyelid margins (lash lines) */}
+            {/* Lid margins */}
             <path d="M 40,200 Q 250,55 460,200" fill="none" stroke="#5a3a20" strokeWidth="2.5" />
             <path d="M 40,200 Q 250,345 460,200" fill="none" stroke="#5a3a20" strokeWidth="2" />
-
             {/* Upper lashes */}
             <g stroke="#3a2010" strokeWidth="1" strokeLinecap="round" opacity="0.7">
               {Array.from({ length: 28 }, (_, i) => {
                 const t = 0.08 + (i / 28) * 0.84;
                 const bx = 40 + t * 420;
-                const by = 200 + (1 - 4 * (t - 0.5) ** 2) * (-145);
+                const by = 200 + (1 - 4 * (t - 0.5) ** 2) * -145;
                 const len = 10 + Math.sin(i * 1.3) * 4;
                 const ang = -Math.PI / 2 + (t - 0.5) * 0.8;
                 return <line key={i} x1={bx} y1={by} x2={bx + len * Math.cos(ang)} y2={by + len * Math.sin(ang)} />;
               })}
             </g>
-
             {/* Lower lashes */}
             <g stroke="#3a2010" strokeWidth="0.8" strokeLinecap="round" opacity="0.5">
               {Array.from({ length: 20 }, (_, i) => {
@@ -373,166 +442,184 @@ export default function AnteriorPhoto() {
               })}
             </g>
 
-            {/* Placed markers */}
-            {markers.map((m, i) => (
-              <g key={i}>
-                <circle cx={m.x} cy={m.y} r={6} fill="none" stroke="#00e5ff" strokeWidth="2" opacity="0.9" />
-                <circle cx={m.x} cy={m.y} r={2} fill="#00e5ff" />
-                <line x1={m.x - 9} y1={m.y} x2={m.x + 9} y2={m.y} stroke="#00e5ff" strokeWidth="1" opacity="0.6" />
-                <line x1={m.x} y1={m.y - 9} x2={m.x} y2={m.y + 9} stroke="#00e5ff" strokeWidth="1" opacity="0.6" />
+            {/* ── Marker ── */}
+            {marker && (
+              <g>
+                <circle cx={marker.x} cy={marker.y} r={7} fill="none" stroke="#00e5ff" strokeWidth="2" />
+                <circle cx={marker.x} cy={marker.y} r={2} fill="#00e5ff" />
+                <line x1={marker.x - 11} y1={marker.y} x2={marker.x + 11} y2={marker.y} stroke="#00e5ff" strokeWidth="0.8" opacity="0.6" />
+                <line x1={marker.x} y1={marker.y - 11} x2={marker.x} y2={marker.y + 11} stroke="#00e5ff" strokeWidth="0.8" opacity="0.6" />
               </g>
-            ))}
+            )}
 
-            {/* Brush stroke */}
+            {/* ── Brush stroke ── */}
             {drawPoints.length > 1 && (
               <polyline
                 points={drawPoints.map((p) => `${p.x},${p.y}`).join(" ")}
                 fill="none"
-                stroke="rgba(0,229,255,0.6)"
-                strokeWidth={brush.px}
+                stroke="rgba(0,229,255,0.5)"
+                strokeWidth={brush.strokeW}
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
             )}
 
-            {/* Brush bounding box (after drawing complete) */}
-            {!isDrawing && drawPoints.length > 1 && (() => {
-              const xs = drawPoints.map((p) => p.x);
-              const ys = drawPoints.map((p) => p.y);
-              const minX = Math.min(...xs) - brush.px / 2;
-              const minY = Math.min(...ys) - brush.px / 2;
-              const maxX = Math.max(...xs) + brush.px / 2;
-              const maxY = Math.max(...ys) + brush.px / 2;
-              return (
-                <rect
-                  x={minX} y={minY}
-                  width={maxX - minX} height={maxY - minY}
-                  fill="none" stroke="#00e5ff" strokeWidth="1"
-                  strokeDasharray="4 3" opacity="0.7"
-                />
-              );
-            })()}
+            {/* ── Bounding box (after drawing) ── */}
+            {!isDrawing && drawBBox && (
+              <rect
+                x={drawBBox.x} y={drawBBox.y}
+                width={drawBBox.w} height={drawBBox.h}
+                fill="none" stroke="#00e5ff" strokeWidth="1"
+                strokeDasharray="4 3" opacity="0.6"
+              />
+            )}
           </svg>
         </div>
 
-        {/* Cross-section diagram */}
+        {/* ── Cross-section ───────────────────────────────────── */}
         <div style={{
-          flex: 1, minWidth: 80, display: "flex", flexDirection: "column",
+          flex: 1, minWidth: 85, maxWidth: 120,
+          display: "flex", flexDirection: "column",
           background: "var(--slate-50)", borderRadius: "var(--radius-sm)",
-          border: "1px solid var(--border)", overflow: "hidden",
+          border: step === "z" ? "2px solid var(--navy-300)" : "1px solid var(--border)",
+          overflow: "hidden",
+          transition: "border-color 200ms ease",
         }}>
           <div style={{
-            fontSize: "0.6rem", fontWeight: 700, color: "var(--text-secondary)",
-            textTransform: "uppercase", letterSpacing: "0.08em",
-            padding: "6px 8px 2px", textAlign: "center",
+            fontSize: "0.55rem", fontWeight: 700, color: "var(--text-secondary)",
+            textTransform: "uppercase", letterSpacing: "0.06em",
+            padding: "4px 6px 1px", textAlign: "center",
           }}>
-            Anterior ↓
+            Surface ↓
           </div>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "2px 4px", gap: 1 }}>
-            {CORNEA_LAYERS.map((layer) => (
-              <button
-                key={layer.id}
-                type="button"
-                onClick={() => setSelectedLayer(selectedLayer === layer.id ? null : layer.id)}
-                disabled={!isCorneal}
-                style={{
-                  flex: layer.thickness,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  background: selectedLayer === layer.id
-                    ? layer.color
-                    : isCorneal
-                      ? `${layer.color}66`
-                      : `${layer.color}22`,
-                  border: selectedLayer === layer.id
-                    ? "2px solid var(--navy-400)"
-                    : "1px solid rgba(0,0,0,0.08)",
-                  borderRadius: 4,
-                  cursor: isCorneal ? "pointer" : "default",
-                  fontSize: "0.55rem",
-                  fontWeight: selectedLayer === layer.id ? 700 : 500,
-                  color: selectedLayer === layer.id ? "var(--navy-900)" : "var(--text-secondary)",
-                  fontFamily: "inherit",
-                  transition: "all 150ms ease",
-                  opacity: isCorneal ? 1 : 0.4,
-                  padding: 0,
-                  overflow: "hidden",
-                  whiteSpace: "nowrap",
-                  textOverflow: "ellipsis",
-                  minHeight: 0,
-                }}
-              >
-                {layer.label}
-              </button>
-            ))}
+
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "2px 3px", gap: 1, minHeight: 0 }}>
+            {DEPTH_LAYERS.map((layer, i) => {
+              const isActive = step === "z";
+              const isSel = depthId === layer.id;
+              // Show group separators
+              const prevGroup = i > 0 ? DEPTH_LAYERS[i - 1].group : null;
+              const showSep = prevGroup !== null && prevGroup !== layer.group;
+
+              return (
+                <div key={layer.id} style={{ display: "contents" }}>
+                  {showSep && (
+                    <div style={{
+                      height: 1, background: "var(--slate-300)", margin: "1px 2px", flexShrink: 0,
+                    }} />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onSelectDepth(layer.id)}
+                    disabled={!isActive}
+                    style={{
+                      flex: layer.flex,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      background: isSel
+                        ? layer.color
+                        : isActive
+                          ? `${layer.color}88`
+                          : `${layer.color}33`,
+                      border: isSel
+                        ? "2px solid var(--navy-500)"
+                        : "1px solid rgba(0,0,0,0.06)",
+                      borderRadius: 3,
+                      cursor: isActive ? "pointer" : "default",
+                      fontSize: "0.52rem",
+                      fontWeight: isSel ? 700 : 500,
+                      color: isSel ? "var(--navy-900)" : isActive ? "var(--text)" : "var(--text-secondary)",
+                      fontFamily: "inherit",
+                      transition: "all 120ms ease",
+                      opacity: isActive || isSel ? 1 : 0.5,
+                      padding: 0,
+                      minHeight: 0,
+                      overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis",
+                    }}
+                  >
+                    {layer.label}
+                  </button>
+                </div>
+              );
+            })}
           </div>
+
           <div style={{
-            fontSize: "0.6rem", fontWeight: 700, color: "var(--text-secondary)",
-            textTransform: "uppercase", letterSpacing: "0.08em",
-            padding: "2px 8px 6px", textAlign: "center",
+            fontSize: "0.55rem", fontWeight: 700, color: "var(--text-secondary)",
+            textTransform: "uppercase", letterSpacing: "0.06em",
+            padding: "1px 6px 4px", textAlign: "center",
           }}>
-            ↑ Posterior
+            ↑ Deep
           </div>
         </div>
       </div>
 
-      {/* Location info bar */}
-      {clickLocation && (
+      {/* ── Info bar — shows what's been set ───────────────────── */}
+      {xyLocation && (
         <div
-          className="animate-in"
           style={{
             background: "var(--navy-50)", borderRadius: "var(--radius-sm)",
-            padding: "8px 12px", flexShrink: 0,
+            padding: "6px 10px", flexShrink: 0,
             border: "1px solid var(--navy-100)",
+            fontSize: "0.75rem",
           }}
         >
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", alignItems: "center" }}>
-            <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--navy-700)" }}>
-              {selectedEye} — {clickLocation.description}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", alignItems: "center" }}>
+            <span style={{ fontWeight: 600, color: "var(--navy-700)" }}>
+              {selectedEye} — {xyLocation.description}
             </span>
-            {clickLocation.clockHour && (
-              <span className="info-chip" style={{ fontSize: "0.7rem" }}>
-                {clickLocation.clockHour} o'clock
+            <span className="info-chip" style={{ fontSize: "0.65rem" }}>
+              {xyLocation.clockHour}h
+            </span>
+            {depthId && (() => {
+              const dl = DEPTH_LAYERS.find((l) => l.id === depthId);
+              return dl ? (
+                <span className="info-chip" style={{
+                  fontSize: "0.65rem",
+                  background: dl.color, borderColor: "var(--navy-200)",
+                  fontWeight: 600,
+                }}>
+                  {dl.label}
+                </span>
+              ) : null;
+            })()}
+            {extentDesc && (
+              <span className="info-chip" style={{ fontSize: "0.65rem" }}>
+                {extentDesc}
               </span>
             )}
-            {selectedLayer && (
-              <span className="info-chip" style={{
-                fontSize: "0.7rem",
-                background: CORNEA_LAYERS.find((l) => l.id === selectedLayer)?.color ?? "white",
-                borderColor: "var(--navy-200)",
-              }}>
-                {CORNEA_LAYERS.find((l) => l.id === selectedLayer)?.label}
-              </span>
-            )}
-            {brushBoundsDesc && (
-              <span className="info-chip" style={{ fontSize: "0.7rem" }}>
-                {brushBoundsDesc}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={clearSelection}
-              style={{
-                marginLeft: "auto", background: "none", border: "none",
-                color: "var(--text-secondary)", fontSize: "0.75rem", cursor: "pointer",
-                fontFamily: "inherit", fontWeight: 500,
-              }}
-            >
-              Clear
-            </button>
           </div>
         </div>
       )}
 
-      {/* Finding buttons — appear after location is set */}
-      {clickLocation && regionData && (
+      {/* ── "Skip extent" / "Draw extent" prompt ──────────────── */}
+      {step === "extent" && (
+        <div style={{
+          display: "flex", gap: 8, alignItems: "center", flexShrink: 0,
+          padding: "4px 0",
+        }}>
+          <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+            Draw extent on eye, or:
+          </span>
+          <button
+            type="button" onClick={skipExtent}
+            className="btn btn-primary"
+            style={{ padding: "6px 16px", fontSize: "0.78rem" }}
+          >
+            Skip → Select Finding
+          </button>
+        </div>
+      )}
+
+      {/* ── Finding buttons ───────────────────────────────────── */}
+      {step === "findings" && regionData && (
         <div style={{ flexShrink: 0 }}>
           <div style={{
-            fontSize: "0.7rem", fontWeight: 600, color: "var(--text-secondary)",
-            textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 6,
+            fontSize: "0.68rem", fontWeight: 600, color: "var(--text-secondary)",
+            textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4,
           }}>
             {regionData.label} — Findings
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {(rankedFindings ?? regionData.findings).map((node) => (
               <RingSelector
                 key={node.label}
@@ -545,53 +632,43 @@ export default function AnteriorPhoto() {
         </div>
       )}
 
-      {/* Current findings list */}
+      {/* ── Current findings list ─────────────────────────────── */}
       {currentFindings.length > 0 && (
         <div style={{ flexShrink: 0 }}>
           <div style={{
-            fontSize: "0.7rem", fontWeight: 600, color: "var(--text-secondary)",
-            textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 4,
+            fontSize: "0.68rem", fontWeight: 600, color: "var(--text-secondary)",
+            textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 3,
           }}>
             AS Findings ({selectedEye})
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
             {currentFindings.map((f) => (
               <div
                 key={f.id}
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "space-between",
                   background: "rgba(255,255,255,0.7)", backdropFilter: "blur(4px)",
-                  borderRadius: 100, padding: "6px 14px", fontSize: "0.82rem",
+                  borderRadius: 100, padding: "5px 12px", fontSize: "0.78rem",
                 }}
               >
-                <span style={{ color: "var(--text)" }}>{f.generatedText}</span>
-                <div style={{ display: "flex", gap: 4, flexShrink: 0, marginLeft: 8 }}>
-                  <button
-                    type="button"
-                    onClick={() => copyToFellowEye(f.key, f.id)}
-                    style={{
-                      width: 36, height: 36, borderRadius: "50%",
-                      background: "var(--navy-50)", color: "var(--navy-500)",
-                      border: "none", fontSize: "0.7rem", fontWeight: 600,
-                      cursor: "pointer", fontFamily: "inherit",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                    }}
-                  >
-                    Copy
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeFinding(f.key, f.id)}
-                    style={{
-                      width: 36, height: 36, borderRadius: "50%",
-                      background: "#fef2f2", color: "#ef4444",
-                      border: "none", fontSize: "0.85rem",
-                      cursor: "pointer", fontFamily: "inherit",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                    }}
-                  >
-                    ✕
-                  </button>
+                <span style={{ color: "var(--text)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {f.generatedText}
+                </span>
+                <div style={{ display: "flex", gap: 3, flexShrink: 0, marginLeft: 6 }}>
+                  <button type="button" onClick={() => copyToFellowEye(f.key, f.id)} style={{
+                    width: 32, height: 32, borderRadius: "50%",
+                    background: "var(--navy-50)", color: "var(--navy-500)",
+                    border: "none", fontSize: "0.65rem", fontWeight: 600,
+                    cursor: "pointer", fontFamily: "inherit",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>Cp</button>
+                  <button type="button" onClick={() => removeFinding(f.key, f.id)} style={{
+                    width: 32, height: 32, borderRadius: "50%",
+                    background: "#fef2f2", color: "#ef4444",
+                    border: "none", fontSize: "0.8rem",
+                    cursor: "pointer", fontFamily: "inherit",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>✕</button>
                 </div>
               </div>
             ))}
