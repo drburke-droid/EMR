@@ -125,6 +125,12 @@ export function getDepthStack(zone: AnatomicalZone): DepthLayer[] {
 
 // ── Location type ─────────────────────────────────────────────
 
+/** A single description option the user can choose from */
+export type DescriptionOption = {
+  label: string;       // e.g. "precise", "standard", "general"
+  text: string;        // the actual description text
+};
+
 export type EyeLocation = {
   eye: "OD" | "OS";
   zone: AnatomicalZone;
@@ -134,6 +140,8 @@ export type EyeLocation = {
   clockHour: number;
   regionId: string;
   description: string;
+  /** Multiple description options from precise → general */
+  descriptionOptions: DescriptionOption[];
 };
 
 export type BrushBounds = {
@@ -235,6 +243,7 @@ export function mapClickToLocation(x: number, y: number): EyeLocation | null {
   // Check lid zone
   const lid = getLidZone(x, y, geo);
   if (lid) {
+    const lidOpts: DescriptionOption[] = [{ label: "standard", text: lid === "upper_lid" ? "upper lid" : "lower lid" }];
     return {
       eye: geo.eye,
       zone: lid,
@@ -243,7 +252,8 @@ export function mapClickToLocation(x: number, y: number): EyeLocation | null {
       distFromCenterMm: 0,
       clockHour: lid === "upper_lid" ? 12 : 6,
       regionId: lid === "upper_lid" ? "upper_lid" : "lower_lid",
-      description: lid === "upper_lid" ? "upper lid" : "lower lid",
+      description: lidOpts[0].text,
+      descriptionOptions: lidOpts,
     };
   }
 
@@ -264,13 +274,14 @@ export function mapClickToLocation(x: number, y: number): EyeLocation | null {
   const direction = getDirection(angle, geo.eye);
   const zone = getZoneByDist(dist, geo);
   const regionId = mapToDefaultRegion(zone, direction);
-  const description = buildDescription(x, y, dist, zone, direction, geo);
+  const descriptionOptions = buildDescriptionOptions(x, y, dist, zone, direction, geo);
+  const description = descriptionOptions[0].text;
 
   return {
     eye: geo.eye,
     zone, direction, distFromLimbusMm,
     distFromCenterMm: Math.round(distMm * 10) / 10,
-    clockHour, regionId, description,
+    clockHour, regionId, description, descriptionOptions,
   };
 }
 
@@ -332,52 +343,87 @@ function pxDist(ax: number, ay: number, bx: number, by: number): number {
 }
 
 /**
- * Human-readable description referencing the nearest anatomical landmark.
+ * Build multiple description options from precise → general.
  */
-function buildDescription(
+function buildDescriptionOptions(
   x: number, y: number, distFromCenter: number,
   zone: AnatomicalZone, direction: string, geo: EyeGeometry,
-): string {
+): DescriptionOption[] {
   const dir = direction === "central" ? "" : direction + " ";
+  const opts: DescriptionOption[] = [];
 
-  if (zone === "upper_lid") return "upper lid";
-  if (zone === "lower_lid") return "lower lid";
+  if (zone === "upper_lid") {
+    opts.push({ label: "standard", text: "upper lid" });
+    return opts;
+  }
+  if (zone === "lower_lid") {
+    opts.push({ label: "standard", text: "lower lid" });
+    return opts;
+  }
 
-  // Central / paracentral cornea → ref visual axis
+  // Central / paracentral cornea
   if (zone === "pupil" || zone === "central_cornea") {
     const mm = distFromCenter / geo.pxPerMm;
-    if (mm < 0.3) return "visual axis";
-    return `${dir}central cornea, ${mm.toFixed(1)}mm from visual axis`;
+    if (mm < 0.3) {
+      opts.push({ label: "precise", text: "visual axis" });
+      opts.push({ label: "standard", text: "central cornea" });
+    } else {
+      opts.push({ label: "precise", text: `${dir}central cornea, ${mm.toFixed(1)}mm from visual axis` });
+      opts.push({ label: "standard", text: `${dir}central cornea` });
+    }
+    opts.push({ label: "general", text: "cornea" });
+    return opts;
   }
 
   if (zone === "paracentral_cornea") {
     const mm = distFromCenter / geo.pxPerMm;
-    return `${dir}paracentral cornea, ${mm.toFixed(1)}mm from visual axis`;
+    opts.push({ label: "precise", text: `${dir}paracentral cornea, ${mm.toFixed(1)}mm from visual axis` });
+    opts.push({ label: "standard", text: `${dir}paracentral cornea` });
+    opts.push({ label: "general", text: "cornea" });
+    return opts;
   }
 
-  // Peripheral cornea / limbus → ref limbus
   if (zone === "peripheral_cornea" || zone === "limbus") {
     const fromLimbusMm = Math.abs(geo.limbusR - distFromCenter) / geo.pxPerMm;
-    if (zone === "limbus") return `${dir}limbus`;
-    return `${dir}peripheral cornea, ${fromLimbusMm.toFixed(1)}mm from limbus`;
+    if (zone === "limbus") {
+      opts.push({ label: "precise", text: `${dir}limbus` });
+      opts.push({ label: "general", text: "limbus" });
+    } else {
+      opts.push({ label: "precise", text: `${dir}peripheral cornea, ${fromLimbusMm.toFixed(1)}mm from limbus` });
+      opts.push({ label: "standard", text: `${dir}peripheral cornea` });
+      opts.push({ label: "general", text: "cornea" });
+    }
+    return opts;
   }
 
-  // Bulbar conjunctiva → nearest landmark (limbus or canthus)
   if (zone === "bulbar_conjunctiva") {
     const fromLimbusMm = (distFromCenter - geo.limbusR) / geo.pxPerMm;
-
     const toNasal = pxDist(x, y, geo.nasalCanthus.x, geo.nasalCanthus.y) / geo.pxPerMm;
     const toTemporal = pxDist(x, y, geo.temporalCanthus.x, geo.temporalCanthus.y) / geo.pxPerMm;
     const nearestCanthusMm = Math.min(toNasal, toTemporal);
     const canthusSide = toNasal <= toTemporal ? "nasal canthus" : "temporal canthus";
 
     if (fromLimbusMm < nearestCanthusMm) {
-      return `${dir}bulbar conj, ${fromLimbusMm.toFixed(1)}mm from limbus`;
+      opts.push({ label: "precise", text: `${dir}bulbar conj, ${fromLimbusMm.toFixed(1)}mm from limbus` });
+    } else {
+      opts.push({ label: "precise", text: `${dir}bulbar conj, ${nearestCanthusMm.toFixed(1)}mm from ${canthusSide}` });
     }
-    return `${dir}bulbar conj, ${nearestCanthusMm.toFixed(1)}mm from ${canthusSide}`;
+    opts.push({ label: "standard", text: `${dir}bulbar conj` });
+    opts.push({ label: "general", text: "bulbar conj" });
+    return opts;
   }
 
-  return `${dir}${zone.replace(/_/g, " ")}`;
+  opts.push({ label: "standard", text: `${dir}${zone.replace(/_/g, " ")}` });
+  return opts;
+}
+
+/** Legacy single-description helper — returns the most precise option */
+function buildDescription(
+  x: number, y: number, distFromCenter: number,
+  zone: AnatomicalZone, direction: string, geo: EyeGeometry,
+): string {
+  const opts = buildDescriptionOptions(x, y, distFromCenter, zone, direction, geo);
+  return opts[0].text;
 }
 
 // ── Resolve depth → finding-tree region ───────────────────────
@@ -460,5 +506,100 @@ export function computeBrushBounds(
     widthMm: wMm, heightMm: hMm,
     centerX, centerY,
     description: `~${wMm.toFixed(1)}mm x ${hMm.toFixed(1)}mm`,
+  };
+}
+
+// ── Recompute location from brush bounds ──────────────────────
+
+/**
+ * After drawing, recompute the EyeLocation from the brush bounding box.
+ * If the drawn area is large enough to span multiple zones or directions,
+ * the description generalises (e.g. "inferior cornea" → "cornea" or "diffuse cornea").
+ */
+export function recomputeLocationFromBounds(
+  bounds: BrushBounds,
+  originalLocation: EyeLocation,
+): EyeLocation {
+  const geo = getEyeGeo(bounds.centerX);
+
+  // Recompute center-based location
+  const centerLoc = mapClickToLocation(bounds.centerX, bounds.centerY);
+  if (!centerLoc) return originalLocation;
+
+  // Sample corners of the bounding box to detect if multiple zones/directions are covered
+  const halfW = (bounds.widthMm * geo.pxPerMm) / 2;
+  const halfH = (bounds.heightMm * geo.pxPerMm) / 2;
+  const samplePoints = [
+    { x: bounds.centerX - halfW, y: bounds.centerY - halfH },
+    { x: bounds.centerX + halfW, y: bounds.centerY - halfH },
+    { x: bounds.centerX - halfW, y: bounds.centerY + halfH },
+    { x: bounds.centerX + halfW, y: bounds.centerY + halfH },
+    { x: bounds.centerX, y: bounds.centerY },
+  ];
+
+  const zones = new Set<AnatomicalZone>();
+  const directions = new Set<string>();
+  for (const pt of samplePoints) {
+    const loc = mapClickToLocation(pt.x, pt.y);
+    if (loc) {
+      zones.add(loc.zone);
+      directions.add(loc.direction);
+    }
+  }
+
+  // Determine if the area spans enough to warrant generalisation
+  const corneaZones: AnatomicalZone[] = ["pupil", "central_cornea", "paracentral_cornea", "peripheral_cornea"];
+  const touchesCornea = [...zones].some((z) => corneaZones.includes(z));
+  const touchesConj = zones.has("bulbar_conjunctiva") || zones.has("limbus");
+  const multipleDirections = directions.size > 1;
+  const hasOppositeDirections = (directions.has("superior") && directions.has("inferior"))
+    || (directions.has("nasal") && directions.has("temporal"))
+    || (directions.has("superior-nasal") && directions.has("inferior-temporal"))
+    || (directions.has("superior-temporal") && directions.has("inferior-nasal"));
+
+  // Build description options for the drawn area
+  const opts: DescriptionOption[] = [];
+
+  // Always include the precise center-based description
+  for (const o of centerLoc.descriptionOptions) {
+    opts.push(o);
+  }
+
+  // If area is large / spans zones, add broader options
+  if (hasOppositeDirections && touchesCornea && !touchesConj) {
+    // Spans across center — diffuse cornea
+    opts.push({ label: "diffuse", text: "diffuse cornea" });
+  } else if (multipleDirections && touchesCornea && touchesConj) {
+    opts.push({ label: "diffuse", text: "cornea and conj" });
+  } else if (multipleDirections && touchesCornea) {
+    // Spans multiple corneal directions but not fully opposing
+    // Collect the unique directions for a compound description
+    const dirList = [...directions].filter((d) => d !== "central");
+    if (dirList.length > 2) {
+      opts.push({ label: "diffuse", text: "diffuse cornea" });
+    } else if (dirList.length === 2) {
+      opts.push({ label: "broad", text: `${dirList.join(" to ")} cornea` });
+    }
+  }
+
+  // Deduplicate options by text
+  const seen = new Set<string>();
+  const uniqueOpts = opts.filter((o) => {
+    if (seen.has(o.text)) return false;
+    seen.add(o.text);
+    return true;
+  });
+
+  // Update regionId if the drawn area generalised beyond the original
+  let regionId = centerLoc.regionId;
+  if (hasOppositeDirections && touchesCornea) {
+    regionId = "cornea_diffuse";
+  }
+
+  return {
+    ...centerLoc,
+    regionId,
+    descriptionOptions: uniqueOpts,
+    description: uniqueOpts[0].text,
   };
 }

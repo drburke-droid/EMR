@@ -9,9 +9,11 @@ import {
   getDepthStack,
   mapClickToLocation,
   computeBrushBounds,
+  recomputeLocationFromBounds,
   resolveRegionForDepth,
   type EyeLocation,
   type DepthLayer,
+  type DescriptionOption,
 } from "../../utils/eyeCoordinates";
 
 /* ================================================================
@@ -51,6 +53,9 @@ export default function AnteriorPhoto() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [drawPoints, setDrawPoints] = useState<{ x: number; y: number }[]>([]);
   const [extentDesc, setExtentDesc] = useState("");
+
+  // Selected description — index into xyLocation.descriptionOptions
+  const [selectedDescIdx, setSelectedDescIdx] = useState(0);
 
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -120,6 +125,7 @@ export default function AnteriorPhoto() {
         if (isPointMode) {
           setMarker(p);
           setXyLocation(loc);
+          setSelectedDescIdx(0);
           setDrawPoints([]);
           setExtentDesc("");
           setStep("z");
@@ -158,13 +164,22 @@ export default function AnteriorPhoto() {
     if (step === "xy") {
       const loc = mapClickToLocation(bounds.centerX, bounds.centerY);
       if (!loc) return;
-      setXyLocation(loc);
+      // Recompute from drawn area for better descriptions
+      const recomputed = recomputeLocationFromBounds(bounds, loc);
+      setXyLocation(recomputed);
+      setSelectedDescIdx(0);
       setMarker({ x: bounds.centerX, y: bounds.centerY });
       setStep("z");
     } else if (step === "extent") {
+      // Recompute location based on the drawn extent
+      if (xyLocation) {
+        const recomputed = recomputeLocationFromBounds(bounds, xyLocation);
+        setXyLocation(recomputed);
+        setSelectedDescIdx(0);
+      }
       setStep("findings");
     }
-  }, [isDrawing, drawPoints, brush.strokeW, step]);
+  }, [isDrawing, drawPoints, brush.strokeW, step, xyLocation]);
 
   /* ── Depth layer selection ──────────────────────────────────── */
   const onSelectDepth = useCallback(
@@ -189,7 +204,9 @@ export default function AnteriorPhoto() {
   function handleComplete(finding: string, qualifiers: string[]) {
     if (!xyLocation || !effectiveRegionId || !detectedEye) return;
     const parts: string[] = [];
-    parts.push(xyLocation.description);
+    // Use the user-selected description option
+    const chosenDesc = xyLocation.descriptionOptions[selectedDescIdx]?.text ?? xyLocation.description;
+    parts.push(chosenDesc);
     if (depthId) {
       const layer = depthStack.find((l) => l.id === depthId);
       if (layer) parts.push(layer.label.toLowerCase());
@@ -208,6 +225,7 @@ export default function AnteriorPhoto() {
     setDrawPoints([]);
     setExtentDesc("");
     setIsDrawing(false);
+    setSelectedDescIdx(0);
   }
 
   /* ── Current findings list — show all anterior findings ──────── */
@@ -492,7 +510,7 @@ export default function AnteriorPhoto() {
         </div>
       </div>
 
-      {/* ── Info bar — shows what's been set ───────────────────── */}
+      {/* ── Info bar — shows what's been set, with selectable descriptions ── */}
       {xyLocation && (
         <div
           style={{
@@ -502,10 +520,37 @@ export default function AnteriorPhoto() {
             fontSize: "0.75rem",
           }}
         >
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", alignItems: "center" }}>
-            <span style={{ fontWeight: 600, color: "var(--navy-700)" }}>
-              {detectedEye} — {xyLocation.description}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 8px", alignItems: "center" }}>
+            <span style={{ fontWeight: 600, color: "var(--navy-500)", fontSize: "0.65rem", flexShrink: 0 }}>
+              {detectedEye}
             </span>
+
+            {/* Description options — stacked as selectable chips */}
+            {xyLocation.descriptionOptions.map((opt, i) => {
+              const isSelected = i === selectedDescIdx;
+              return (
+                <button
+                  key={`${opt.label}-${opt.text}`}
+                  type="button"
+                  onClick={() => setSelectedDescIdx(i)}
+                  style={{
+                    background: isSelected ? "var(--navy-600)" : "rgba(255,255,255,0.7)",
+                    color: isSelected ? "white" : "var(--navy-600)",
+                    border: isSelected ? "1.5px solid var(--navy-600)" : "1px solid var(--navy-200)",
+                    borderRadius: 100,
+                    padding: "3px 10px",
+                    fontSize: "0.68rem",
+                    fontWeight: isSelected ? 600 : 400,
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    transition: "all 100ms ease",
+                  }}
+                >
+                  {opt.text}
+                </button>
+              );
+            })}
+
             <span className="info-chip" style={{ fontSize: "0.65rem" }}>
               {xyLocation.clockHour}h
             </span>
