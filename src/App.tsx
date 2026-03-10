@@ -9,6 +9,8 @@ import LiveNote from "./components/note/LiveNote";
 import { diagnoses } from "./data/diagnoses";
 import Chip from "./components/ui/Chip";
 import MacWindow, { type WindowState } from "./components/ui/MacWindow";
+import CalibrationOverlay from "./components/calibration/CalibrationOverlay";
+import type { EyeGeometry } from "./utils/eyeCoordinates";
 
 /* ---- Window definitions ---- */
 type WinDef = {
@@ -17,30 +19,37 @@ type WinDef = {
   defaultState: WindowState;
   minW?: number;
   minH?: number;
+  bodyClassName?: string;
 };
 
 function getDefaults(): Record<string, WindowState> {
   const vw = window.innerWidth;
   const gap = 16;
-  // 3 columns: left (Hx/Sx stacked with Dx/Plan), center (AS/PS stacked), right (Note)
   const colW = Math.min(420, Math.floor((vw - gap * 4) / 3));
   const tallH = 480;
   const shortH = 320;
 
+  // AS window: wide (~2:1) so dual-eye photo fills naturally and depth gauge matches height
+  const asW = Math.min(Math.floor(vw * 0.55), vw - gap * 2);
+  const asH = Math.round(asW / 2);
+
+  // Stack other windows below/beside the AS window
+  const row2Y = gap + asH + gap;
+
   return {
-    sx:   { x: gap,              y: gap,                w: colW, h: tallH,  collapsed: false, zIndex: 1 },
-    dx:   { x: gap,              y: gap + tallH + gap,  w: colW, h: shortH, collapsed: false, zIndex: 2 },
-    as:   { x: gap * 2 + colW,   y: gap,                w: colW, h: tallH,  collapsed: false, zIndex: 3 },
-    ps:   { x: gap * 2 + colW,   y: gap + tallH + gap,  w: colW, h: tallH,  collapsed: false, zIndex: 4 },
-    plan: { x: gap * 3 + colW * 2, y: gap + tallH + gap, w: colW, h: shortH, collapsed: false, zIndex: 5 },
-    note: { x: gap * 3 + colW * 2, y: gap,               w: colW, h: tallH,  collapsed: false, zIndex: 6 },
+    sx:   { x: gap,              y: row2Y,              w: colW, h: shortH, collapsed: false, zIndex: 1 },
+    dx:   { x: gap,              y: row2Y + shortH + gap, w: colW, h: shortH, collapsed: false, zIndex: 2 },
+    as:   { x: gap,              y: gap,                w: asW,  h: asH,   collapsed: false, zIndex: 3 },
+    ps:   { x: gap + colW + gap, y: row2Y,              w: colW, h: tallH,  collapsed: false, zIndex: 4 },
+    plan: { x: gap + (colW + gap) * 2, y: row2Y,        w: colW, h: shortH, collapsed: false, zIndex: 5 },
+    note: { x: asW + gap * 2,    y: gap,                w: vw - asW - gap * 3, h: asH, collapsed: false, zIndex: 6 },
   };
 }
 
 const WIN_DEFS: WinDef[] = [
   { id: "sx",   title: "Hx / Sx",           minW: 300, minH: 180 },
-  { id: "as",   title: "Anterior Segment",   minW: 340, minH: 280 },
-  { id: "ps",   title: "Posterior Segment",   minW: 340, minH: 280 },
+  { id: "as",   title: "Anterior Segment",   minW: 340, minH: 200, bodyClassName: "compact" },
+  { id: "ps",   title: "Posterior Segment",   minW: 340, minH: 200, bodyClassName: "compact" },
   { id: "dx",   title: "Diagnoses",          minW: 280, minH: 160 },
   { id: "plan", title: "Plan",               minW: 280, minH: 160 },
   { id: "note", title: "Live Note",          minW: 280, minH: 200 },
@@ -63,6 +72,7 @@ export default function App() {
 
   const [windows, setWindows] = useState<Record<string, WindowState>>(getDefaults);
   const [topZ, setTopZ] = useState(WIN_DEFS.length + 1);
+  const [showCalibration, setShowCalibration] = useState(false);
 
   const updateWindow = useCallback(
     (id: string, patch: Partial<WindowState>) => {
@@ -188,6 +198,22 @@ export default function App() {
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <button
             type="button"
+            onClick={() => setShowCalibration(true)}
+            style={{
+              background: "rgba(255,200,0,0.15)",
+              border: "1px solid rgba(255,200,0,0.3)",
+              borderRadius: 6,
+              color: "rgba(255,200,0,0.85)",
+              padding: "4px 10px",
+              fontSize: "0.72rem",
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Calibrate
+          </button>
+          <button
+            type="button"
             onClick={tileWindows}
             style={{
               background: "rgba(255,255,255,0.06)",
@@ -249,11 +275,25 @@ export default function App() {
             onFocus={focusWindow}
             minW={def.minW}
             minH={def.minH}
+            bodyClassName={def.bodyClassName}
           >
             <WindowContent id={def.id} />
           </MacWindow>
         ))}
       </div>
+
+      {/* Calibration overlay */}
+      {showCalibration && (
+        <CalibrationOverlay
+          onClose={() => setShowCalibration(false)}
+          onApply={(od: EyeGeometry, os: EyeGeometry) => {
+            // Log to console so values can be copied
+            console.log("Calibrated OD_GEO:", od);
+            console.log("Calibrated OS_GEO:", os);
+            setShowCalibration(false);
+          }}
+        />
+      )}
 
       {/* Bottom Dx bar — frosted */}
       <div

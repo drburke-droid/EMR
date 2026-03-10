@@ -30,27 +30,27 @@ export type EyeGeometry = {
 
 export const OD_GEO: EyeGeometry = {
   eye: "OD",
-  cx: 430, cy: 478,
-  pupilR: 38, irisR: 110, limbusR: 118,
-  pxPerMm: 118 / 5.75,
-  nasalCanthus: { x: 640, y: 488 },
-  temporalCanthus: { x: 215, y: 488 },
-  upperCtrlY: 292,
-  lowerCtrlY: 622,
+  cx: 417, cy: 515,
+  pupilR: 28, irisR: 106, limbusR: 117,
+  pxPerMm: 117 / 5.75,
+  nasalCanthus: { x: 624, y: 562 },
+  temporalCanthus: { x: 217, y: 534 },
+  upperCtrlY: 345,
+  lowerCtrlY: 722,
 };
 
 export const OS_GEO: EyeGeometry = {
   eye: "OS",
-  cx: 1195, cy: 475,
-  pupilR: 34, irisR: 100, limbusR: 108,
-  pxPerMm: 108 / 5.75,
-  nasalCanthus: { x: 1005, y: 483 },
-  temporalCanthus: { x: 1400, y: 480 },
-  upperCtrlY: 309,
-  lowerCtrlY: 609,
+  cx: 1528, cy: 516,
+  pupilR: 27, irisR: 101, limbusR: 110,
+  pxPerMm: 110 / 5.75,
+  nasalCanthus: { x: 1333, y: 568 },
+  temporalCanthus: { x: 1746, y: 544 },
+  upperCtrlY: 337,
+  lowerCtrlY: 714,
 };
 
-const NOSE_X = 815;
+const NOSE_X = 978;
 
 /** Average PX_PER_MM for brush stroke sizing */
 export const AVG_PX_PER_MM = (OD_GEO.pxPerMm + OS_GEO.pxPerMm) / 2;

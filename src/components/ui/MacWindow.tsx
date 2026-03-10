@@ -20,6 +20,8 @@ type Props = {
   minW?: number;
   /** Minimum height in px */
   minH?: number;
+  /** Extra class on the body div (e.g. "compact" for tight padding) */
+  bodyClassName?: string;
 };
 
 const MIN_W_DEFAULT = 320;
@@ -35,6 +37,7 @@ export default function MacWindow({
   children,
   minW = MIN_W_DEFAULT,
   minH = MIN_H_DEFAULT,
+  bodyClassName,
 }: Props) {
   const dragging = useRef(false);
   const resizing = useRef(false);
@@ -196,7 +199,7 @@ export default function MacWindow({
       {/* Body */}
       {!state.collapsed && (
         <div
-          className="mac-body"
+          className={`mac-body${bodyClassName ? ` ${bodyClassName}` : ""}`}
           style={{
             flex: 1,
             overflowY: "auto",

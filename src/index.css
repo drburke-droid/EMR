@@ -242,6 +242,10 @@ body {
   background: var(--white);
 }
 
+.mac-body.compact {
+  padding: 4px;
+}
+
 .mac-footer {
   padding: 6px 14px;
   background: var(--slate-50);
