@@ -31,6 +31,41 @@ export type MissingSuggestion = {
 
 const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
 
+// ── NLP condition filter ─────────────────────────────────────────
+
+// Build lowercase set of known diagnosis labels for NLP cross-referencing
+const diagLabelSet = new Set(diagnoses.map((d) => d.label.toLowerCase()));
+
+// Common lay terms / synonyms that the NLP data may miscategorise as signs
+const NLP_EXCLUDE_TERMS = new Set([
+  "stye", "sty",
+]);
+
+/**
+ * Returns true if an NLP-suggested term should be excluded because it is
+ * a condition name (not an actionable clinical finding or symptom).
+ */
+function shouldExcludeNlpTerm(
+  term: string,
+  selectedDiagLabel: string,
+): boolean {
+  const lower = term.toLowerCase();
+  const diagLower = selectedDiagLabel.toLowerCase();
+
+  // Too similar to the selected diagnosis
+  if (lower === diagLower) return true;
+  if (lower.length >= 4 && diagLower.includes(lower)) return true;
+  if (diagLower.length >= 4 && lower.includes(diagLower)) return true;
+
+  // Exact match against a known diagnosis label
+  if (diagLabelSet.has(lower)) return true;
+
+  // Known unhelpful terms
+  if (NLP_EXCLUDE_TERMS.has(lower)) return true;
+
+  return false;
+}
+
 function getDiagnosisLabel(id: string): string {
   const dx = diagnoses.find((d) => d.id === id);
   return dx?.label ?? id;
@@ -151,6 +186,9 @@ export function getMissingSuggestions(
     for (const nlpSugg of nlpSignSymptoms) {
       const termLower = nlpSugg.term.toLowerCase();
 
+      // Skip unhelpful condition terms (synonyms, known diagnoses, etc.)
+      if (shouldExcludeNlpTerm(nlpSugg.term, diagLabel)) continue;
+
       // Skip if already in encounter (by finding name)
       if (presentFindings.has(`finding::${termLower}`)) continue;
       if (symptomSet.has(termLower)) continue;
@@ -178,7 +216,9 @@ export function getMissingSuggestions(
           ? { symptom: nlpSugg.term }
           : { finding: nlpSugg.term }),
         priority: nlpSugg.strength >= 10 ? "medium" : "low",
-        prompt: `${nlpSugg.term} (textbook association, strength ${nlpSugg.strength.toFixed(1)})`,
+        prompt: isSymptom
+          ? `Ask about ${nlpSugg.term.toLowerCase()}`
+          : `Check for ${nlpSugg.term.toLowerCase()}`,
         source: "nlp",
         nlpConfidence: nlpSugg.strength,
       };
@@ -199,6 +239,12 @@ export function getMissingSuggestions(
 
     for (const pred of chainPreds) {
       const termLower = pred.term.toLowerCase();
+
+      // Skip condition terms that wouldn't be actionable suggestions
+      const anyDiagLabel = selectedDiagnoses
+        .map((id) => getDiagnosisLabel(id))
+        .find((label) => shouldExcludeNlpTerm(pred.term, label));
+      if (anyDiagLabel) continue;
 
       if (presentFindings.has(`finding::${termLower}`)) continue;
       if (symptomSet.has(termLower)) continue;
@@ -222,7 +268,9 @@ export function getMissingSuggestions(
           ? { symptom: pred.term }
           : { finding: pred.term }),
         priority,
-        prompt: `${pred.term} (predicted by ${pred.supportedBy.join(", ")})`,
+        prompt: isSymptom
+          ? `Ask about ${pred.term.toLowerCase()}`
+          : `Check for ${pred.term.toLowerCase()}`,
         source: "nlp",
         nlpConfidence: pred.confidence,
       };

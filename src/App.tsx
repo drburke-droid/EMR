@@ -10,7 +10,9 @@ import { diagnoses } from "./data/diagnoses";
 import Chip from "./components/ui/Chip";
 import MacWindow, { type WindowState } from "./components/ui/MacWindow";
 import CalibrationOverlay from "./components/calibration/CalibrationOverlay";
+import PSCalibrationTool from "./components/calibration/PSCalibrationTool";
 import type { EyeGeometry } from "./utils/eyeCoordinates";
+import type { RetinaEyeGeometry } from "./utils/retinaCoordinates";
 
 /* ---- Window definitions ---- */
 type WinDef = {
@@ -29,9 +31,9 @@ function getDefaults(): Record<string, WindowState> {
   const tallH = 480;
   const shortH = 320;
 
-  // AS window: wide (~2:1) so dual-eye photo fills naturally and depth gauge matches height
+  // AS window: wide & short — crops to just eyes/lids/adnexa, freeing screen space
   const asW = Math.min(Math.floor(vw * 0.55), vw - gap * 2);
-  const asH = Math.round(asW / 2);
+  const asH = Math.round(asW / 3.2);
 
   // Stack other windows below/beside the AS window
   const row2Y = gap + asH + gap;
@@ -48,7 +50,7 @@ function getDefaults(): Record<string, WindowState> {
 
 const WIN_DEFS: WinDef[] = [
   { id: "sx",   title: "Hx / Sx",           minW: 300, minH: 180 },
-  { id: "as",   title: "Anterior Segment",   minW: 340, minH: 200, bodyClassName: "compact" },
+  { id: "as",   title: "Anterior Segment",   minW: 340, minH: 120, bodyClassName: "compact" },
   { id: "ps",   title: "Posterior Segment",   minW: 340, minH: 200, bodyClassName: "compact" },
   { id: "dx",   title: "Diagnoses",          minW: 280, minH: 160 },
   { id: "plan", title: "Plan",               minW: 280, minH: 160 },
@@ -73,6 +75,7 @@ export default function App() {
   const [windows, setWindows] = useState<Record<string, WindowState>>(getDefaults);
   const [topZ, setTopZ] = useState(WIN_DEFS.length + 1);
   const [showCalibration, setShowCalibration] = useState(false);
+  const [showPSCalibration, setShowPSCalibration] = useState(false);
 
   const updateWindow = useCallback(
     (id: string, patch: Partial<WindowState>) => {
@@ -210,7 +213,23 @@ export default function App() {
               fontFamily: "inherit",
             }}
           >
-            Calibrate
+            AS Calibrate
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowPSCalibration(true)}
+            style={{
+              background: "rgba(0,255,200,0.12)",
+              border: "1px solid rgba(0,255,200,0.3)",
+              borderRadius: 6,
+              color: "rgba(0,255,200,0.85)",
+              padding: "4px 10px",
+              fontSize: "0.72rem",
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            PS Calibrate
           </button>
           <button
             type="button"
@@ -282,15 +301,26 @@ export default function App() {
         ))}
       </div>
 
-      {/* Calibration overlay */}
+      {/* AS Calibration overlay */}
       {showCalibration && (
         <CalibrationOverlay
           onClose={() => setShowCalibration(false)}
           onApply={(od: EyeGeometry, os: EyeGeometry) => {
-            // Log to console so values can be copied
             console.log("Calibrated OD_GEO:", od);
             console.log("Calibrated OS_GEO:", os);
             setShowCalibration(false);
+          }}
+        />
+      )}
+
+      {/* PS Retina Calibration overlay */}
+      {showPSCalibration && (
+        <PSCalibrationTool
+          onClose={() => setShowPSCalibration(false)}
+          onApply={(od: RetinaEyeGeometry, os: RetinaEyeGeometry) => {
+            console.log("PS Calibrated OD:", od);
+            console.log("PS Calibrated OS:", os);
+            setShowPSCalibration(false);
           }}
         />
       )}

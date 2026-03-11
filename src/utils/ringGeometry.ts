@@ -35,6 +35,8 @@ let arcIdCounter = 0;
 export function computeSegments(
   ringIndex: number,
   labels: string[],
+  centerRadius = BUTTON_RADIUS,
+  ringWidth = RING_WIDTH,
 ): ArcSegment[] {
   if (labels.length === 0) return [];
 
@@ -43,8 +45,8 @@ export function computeSegments(
   const displayLabels = labels.length === 3 ? [...labels, ""] : labels;
   const n = displayLabels.length;
 
-  const innerR = ringInnerRadius(ringIndex);
-  const outerR = ringOuterRadius(ringIndex);
+  const innerR = centerRadius + ringIndex * ringWidth;
+  const outerR = centerRadius + (ringIndex + 1) * ringWidth;
   const totalGap = n * GAP_ANGLE;
   const available = 360 - totalGap;
   const segAngle = available / n;
@@ -133,6 +135,10 @@ function arcOnlyPath(r: number, startDeg: number, endDeg: number): string {
   return `M ${sx} ${sy} A ${r} ${r} 0 ${largeArc} ${sweep} ${ex} ${ey}`;
 }
 
-export function totalRadius(ringCount: number): number {
-  return BUTTON_RADIUS + ringCount * RING_WIDTH;
+export function totalRadius(
+  ringCount: number,
+  centerRadius = BUTTON_RADIUS,
+  ringWidth = RING_WIDTH,
+): number {
+  return centerRadius + ringCount * ringWidth;
 }

@@ -6,13 +6,14 @@ export type Eye = "OD" | "OS" | "OU";
 export type SymptomEntry = {
   id: string;
   symptom: string;
-  laterality?: string;
-  severity?: string;
+  frequency?: string;
   onset?: string;
+  location: string[];
   duration?: string;
-  triggers: string[];
+  association: string[];
   relief: string[];
-  associated: string[];
+  aggravating: string[];
+  quantify?: string;
 };
 
 export type FindingEntry = {
@@ -36,6 +37,7 @@ export type EncounterState = {
 
   setChiefComplaint: (cc: string) => void;
   addSymptom: (symptom: string) => void;
+  addSymptomWithData: (symptom: string, data: Partial<SymptomEntry>) => void;
   updateSymptom: (id: string, updates: Partial<SymptomEntry>) => void;
   removeSymptom: (id: string) => void;
   toggleHistoryBlock: (block: string) => void;
@@ -98,7 +100,16 @@ export const useEncounterStore = create<EncounterState>((set) => ({
 
   addSymptom: (symptom) =>
     set((s) => ({
-      symptoms: [...s.symptoms, { id: uuid(), symptom, triggers: [], relief: [], associated: [] }],
+      symptoms: [...s.symptoms, { id: uuid(), symptom, location: [], association: [], relief: [], aggravating: [] }],
+    })),
+
+  addSymptomWithData: (symptom, data) =>
+    set((s) => ({
+      symptoms: [...s.symptoms, {
+        id: uuid(), symptom,
+        location: [], association: [], relief: [], aggravating: [],
+        ...data,
+      }],
     })),
 
   updateSymptom: (id, updates) =>
