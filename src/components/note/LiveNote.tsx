@@ -93,6 +93,11 @@ export default function LiveNote() {
                   <span className="text-[10px] opacity-60 ml-1.5">
                     ({s.diagnosisLabel})
                   </span>
+                  {s.source === "nlp" && (
+                    <span className="text-[9px] ml-1 px-1 py-0.5 rounded bg-indigo-100 text-indigo-500 font-semibold">
+                      NLP
+                    </span>
+                  )}
                 </span>
                 <span className="text-[10px] opacity-50 shrink-0 uppercase">
                   + add

@@ -73,10 +73,14 @@ export default function DiagnosisSearch() {
             {suggested.map((s) => {
               const dx = diagnoses.find((d) => d.id === s.id);
               if (!dx) return null;
-              const matchInfo = [
+              const matchParts = [
                 ...s.matchedFindings.map((f) => f.split("/")[1]),
                 ...s.matchedSymptoms,
-              ].slice(0, 3).join(", ");
+              ].slice(0, 3);
+              if (s.nlpConfidence > 0 && matchParts.length === 0) {
+                matchParts.push("NLP");
+              }
+              const matchInfo = matchParts.join(", ");
               return (
                 <Chip
                   key={dx.id}
